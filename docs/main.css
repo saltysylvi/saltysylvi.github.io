@@ -1,0 +1,16 @@
+@font-face {
+    font-family: BQN;
+    src: url(BQN386.ttf) format('truetype');
+}
+* {
+    font-family: tahoma, sans-serif;
+    box-sizing: border-box;
+}
+code, pre {
+    font-family: BQN;
+}
+body {
+    width: 80ch;
+    font-size: 18px;
+    margin: auto;
+}
