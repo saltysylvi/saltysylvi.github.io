@@ -26,11 +26,27 @@ though I do intend to study it eventually.
 <p>Getting my script working was a doozy,
 and I'm not even trying to do anything that complicated compared to a "real" compiler.
 </p>
-<p>The following is an explanation of how the script works,
-mostly for myself, so that I can understand it later.
+<h2>Features</h2>
+
+<p>build-site.bqn currently supports fairly standard markdown syntax for:<br>
+- headings (e.g. # Heading 1)<br>
+- paragraphs (consecutive lines of text)<br>
+- horizontal dividers (using ---)<br>
+- links (display in square brackets followed by target in parens)<br>
+- inline code (delimited with backticks)<br>
+- code blocks (triple backticks)<br>
+- line breaks (double space at the end of line)
+</p>
+<p>There's currently no support for lists, bold/italics, or escaping the special markdown syntax
+(as you might be able to guess from above).
+It's particularly annoying that I can't write backtick for BQN's scan except in a code block.
+Like I said, it's super minimal and janky.
 </p>
 <h2>build-site.bqn docs</h2>
 
+<p>The following is an explanation of how the script works,
+mostly for myself, so that I can understand it later.
+</p>
 <p>This site is built with a bqn script <code>build-site.bqn</code>.
 The script transforms the markdown files in the <code>source</code> directory into the html files in the <code>docs</code> directory.
 </p>
@@ -67,7 +83,7 @@ outFiles ← (∾⟜"html" ¯2 ↓ ·"docs"⊸∾ ⊐⟜'/'⊸↓)¨ sourceFiles
 outFiles •FLines⟜(Md2html⟜•FLines)¨ sourceFiles
 </pre>
 
-<h3>Reading, converting, and writing files</h3>
+<h3>Reading and writing files</h3>
 
 <p>Let's start with the last three lines:
 </p>
@@ -86,30 +102,10 @@ here "source" and "source/blog".
 ⟨ "source/array-programming.md" "source/index.md" "source/blog/index.md" "source/blog/site-generator-docs-0.md" ⟩
 </pre>
 
-<p>Let's break this down.
-</p>
 <p>We use <code>•file.List</code> to list the contents of the directory.
-</p>
-<pre>
-   •file.List "source"
-⟨ "array-programming.md" "blog" "index.md" ⟩
-</pre>
-
-<p>Then we prepend the directory name and a forward slash to each file name.
-</p>
-<pre>
-   ("source"∾'/')⊸∾¨•file.List "source"
-⟨ "source/array-programming.md" "source/blog" "source/index.md" ⟩
-</pre>
-
-<p>Then we use a filtering pattern <code>Predicate¨⊸/</code> to pick out the markdown files.
-</p>
-<pre>
-   (".md"≡¯3⊸↑)¨⊸/ ("source"∾'/')⊸∾¨•file.List "source"
-⟨ "source/array-programming.md" "source/index.md" ⟩
-</pre>
-
-<p>We do this to each directory, generating a list of lists,
+Then we prepend the directory name and a forward slash to each file name.
+Then we use a filtering pattern <code>Predicate¨⊸/</code> to pick out the markdown files.
+We do this to each directory, generating a list of lists,
 so we use a final <code>∾</code> on the left of the block to join the lists.
 </p>
 <p>The second line generates a list of all the output file paths.
@@ -120,24 +116,10 @@ so we use a final <code>∾</code> on the left of the block to join the lists.
 </pre>
 
 <p>The first bit changes the directory from "source" to "docs".
-<code>⊐⟜'/'⊸↓</code> finds <code>⊐</code> the index of the first forward slash, and then drops <code>↓</code> that many characters
-to remove everything up to the first slash.
-<code>"docs"⊸∾</code> just prepends "docs" onto the result.
+We drop up to the first slash and prepend "docs".
+The second part changes the extension.
+We drop "md" from the end, and append "html".
 </p>
-<pre>
-   "docs"⊸∾ ⊐⟜'/'⊸↓ "source/blog/index.md"
-"docs/blog/index.md"
-</pre>
-
-<p>The rest just changes the file extension from "md" to "html" by 
-dropping two characters from the end and appending "html".
-Since we're writing a train, we need a nothing <code>·</code> there to apply the first two functions as monads in sequence.
-</p>
-<pre>
-   (∾⟜"html" ¯2 ↓ ·"docs"⊸∾ ⊐⟜'/'⊸↓) "source/blog/index.md"
-"docs/blog/index.html"
-</pre>
-
 <p>The third line opens each source file, converts it from markdown to html, and writes it to the corresponding output file.
 </p>
 <pre>
@@ -146,8 +128,7 @@ Since we're writing a train, we need a nothing <code>·</code> there to apply th
 
 <p>The function <code>Md2html</code> converts a markdown file to an html file.
 It takes the file name as its left argument and the file contents (as a list of lines) as its right argument.
-<code>Md2html⟜•FLines filename</code> expands to <code>filename Md2html •FLines filename</code>,
-which is just what we need to pass the filename and its contents as the left and right arguments respectively.
+<code>Md2html⟜•FLines filename</code> is just what we need to pass the filename and its contents as the left and right arguments respectively.
 </p>
 <p>All that gets passed as the right argument to another <code>•FLines</code> call, this time with the output file as a left argument.
 Dyadic <code>•FLines</code> writes its right argument to the location specified by its left argument.
@@ -335,7 +316,8 @@ But we need a mask to use with <code>/</code>, so we convert back to a mask with
 and over-take to make sure with get a <code>≠g</code> length result.
 The left argument of <code>⌾</code> shapes it back up into a something-by-3 array to apply <code>P</code>.
 </p>
-<p>(Phew! I'm definitely gonna have to take a look at the "official" bqn markdown parser to see how to do this better.) 
+<p>As I often feel when writing BQN, it's hard to tell if this is clever or just awful.
+I'll have to see how the "official" BQN markdown parser does it.
 </p>
 <pre>
     ⟨"&lt;!DOCTYPE html&gt;","&lt;html lang=""en""&gt;","&lt;head&gt;","&lt;meta charset=""utf-8""&gt;",

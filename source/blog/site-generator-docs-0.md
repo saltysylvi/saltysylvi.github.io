@@ -18,10 +18,26 @@ though I do intend to study it eventually.
 Getting my script working was a doozy,
 and I'm not even trying to do anything that complicated compared to a "real" compiler.
 
-The following is an explanation of how the script works,
-mostly for myself, so that I can understand it later.
+## Features
+
+build-site.bqn currently supports fairly standard markdown syntax for:  
+- headings (e.g. # Heading 1)  
+- paragraphs (consecutive lines of text)  
+- horizontal dividers (using ---)  
+- links (display in square brackets followed by target in parens)  
+- inline code (delimited with backticks)  
+- code blocks (triple backticks)  
+- line breaks (double space at the end of line)
+
+There's currently no support for lists, bold/italics, or escaping the special markdown syntax
+(as you might be able to guess from above).
+It's particularly annoying that I can't write backtick for BQN's scan except in a code block.
+Like I said, it's super minimal and janky.
 
 ## build-site.bqn docs
+
+The following is an explanation of how the script works,
+mostly for myself, so that I can understand it later.
 
 This site is built with a bqn script `build-site.bqn`.
 The script transforms the markdown files in the `source` directory into the html files in the `docs` directory.
@@ -59,7 +75,7 @@ outFiles ← (∾⟜"html" ¯2 ↓ ·"docs"⊸∾ ⊐⟜'/'⊸↓)¨ sourceFiles
 outFiles •FLines⟜(Md2html⟜•FLines)¨ sourceFiles
 ```
 
-### Reading, converting, and writing files
+### Reading and writing files
 
 Let's start with the last three lines:
 
@@ -78,29 +94,9 @@ here "source" and "source/blog".
 ⟨ "source/array-programming.md" "source/index.md" "source/blog/index.md" "source/blog/site-generator-docs-0.md" ⟩
 ```
 
-Let's break this down.
-
 We use `•file.List` to list the contents of the directory.
-
-```
-   •file.List "source"
-⟨ "array-programming.md" "blog" "index.md" ⟩
-```
-
 Then we prepend the directory name and a forward slash to each file name.
-
-```
-   ("source"∾'/')⊸∾¨•file.List "source"
-⟨ "source/array-programming.md" "source/blog" "source/index.md" ⟩
-```
-
 Then we use a filtering pattern `Predicate¨⊸/` to pick out the markdown files.
-
-```
-   (".md"≡¯3⊸↑)¨⊸/ ("source"∾'/')⊸∾¨•file.List "source"
-⟨ "source/array-programming.md" "source/index.md" ⟩
-```
-
 We do this to each directory, generating a list of lists,
 so we use a final `∾` on the left of the block to join the lists.
 
@@ -112,23 +108,9 @@ The second line generates a list of all the output file paths.
 ```
 
 The first bit changes the directory from "source" to "docs".
-`⊐⟜'/'⊸↓` finds `⊐` the index of the first forward slash, and then drops `↓` that many characters
-to remove everything up to the first slash.
-`"docs"⊸∾` just prepends "docs" onto the result.
-
-```
-   "docs"⊸∾ ⊐⟜'/'⊸↓ "source/blog/index.md"
-"docs/blog/index.md"
-```
-
-The rest just changes the file extension from "md" to "html" by 
-dropping two characters from the end and appending "html".
-Since we're writing a train, we need a nothing `·` there to apply the first two functions as monads in sequence.
-
-```
-   (∾⟜"html" ¯2 ↓ ·"docs"⊸∾ ⊐⟜'/'⊸↓) "source/blog/index.md"
-"docs/blog/index.html"
-```
+We drop up to the first slash and prepend "docs".
+The second part changes the extension.
+We drop "md" from the end, and append "html".
 
 The third line opens each source file, converts it from markdown to html, and writes it to the corresponding output file.
 
@@ -138,8 +120,7 @@ The third line opens each source file, converts it from markdown to html, and wr
 
 The function `Md2html` converts a markdown file to an html file.
 It takes the file name as its left argument and the file contents (as a list of lines) as its right argument.
-`Md2html⟜•FLines filename` expands to `filename Md2html •FLines filename`,
-which is just what we need to pass the filename and its contents as the left and right arguments respectively.
+`Md2html⟜•FLines filename` is just what we need to pass the filename and its contents as the left and right arguments respectively.
 
 All that gets passed as the right argument to another `•FLines` call, this time with the output file as a left argument.
 Dyadic `•FLines` writes its right argument to the location specified by its left argument.
@@ -327,7 +308,8 @@ But we need a mask to use with `/`, so we convert back to a mask with `/⁼`
 and over-take to make sure with get a `≠g` length result.
 The left argument of `⌾` shapes it back up into a something-by-3 array to apply `P`.
 
-(Phew! I'm definitely gonna have to take a look at the "official" bqn markdown parser to see how to do this better.) 
+As I often feel when writing BQN, it's hard to tell if this is clever or just awful.
+I'll have to see how the "official" BQN markdown parser does it.
 
 ```
     ⟨"<!DOCTYPE html>","<html lang=""en"">","<head>","<meta charset=""utf-8"">",
