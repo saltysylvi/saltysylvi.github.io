@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Parsing nested lists in BQN</title>
+<link href="../main.css" rel="stylesheet">
+</head>
+<body>
+<h1>Parsing nested lists in BQN</h1>
+
+<p>01/23/2023
+</p>
+<p>Three ways to parse the nested lists from Advent of Code 2022 day 13 in BQN.
+</p>
+<hr>
+
+<p><a href="https://adventofcode.com/2022/day/13">Advent of Code 2022 day 13</a> requires you to parse nested lists like 
+</p><pre>
+   [1,[2,[3,[4,[5,6,7]]]],8,9]
+</pre>
+
+<p>This post covers three different ways to handle the problem:<br>
+1. "Cheating" by using <code>•BQN</code> to do the heavy lifting<br>
+2. Writing a conventional recursive descent parser<br>
+3. Writing an array-style parser
+</p>
+<p>We'll also do some simple benchmarking to compare the three approaches.
+</p>
+<h2>The Data</h2>
+
+<p>We'll be using my advent of code input file to test the different approaches on.
+Here's the first six lines:
+</p>
+<pre>
+   •Show¨ 6 ↑ input ← •FLines "13.txt"
+"[[[[8,7,8,5,4],6,[4,6]]],[6,[[]]],[]]"
+"[[[[8,0,0,7,1],[1],8]]]"
+⟨⟩
+"[[[5,8,[4,9,2],7,[8,0]],[9,5,[5,5]],[9,[3,3,8,4,8],[0,6]],5,3],[8,10,[[8,7,6,1,8],5,0,6,[5,1]],[7,[1],6],[6,2,1,[],[1,0,6,5]]],[1,1,[[2]]],[]]"
+"[[10,4,[],7,[[10,1]]],[[4,2]],[[[5],[],[],[]],[4,5,[2,4,9]]],[[8,[],[1,3,9,7]],4,7]]"
+⟨⟩
+</pre>
+
+<p>The lists come in pairs, with each pair separated by a blank line.
+Since the problem requires you to compare pairs of lists,
+a suitable format for working with the data is to parse it all into one list of pairs of lists.
+Thus we can turn the problem into parsing one giant list.
+</p>
+<pre>
+   data ← ']'∾˜ '['∾ ¯1↓∾(3|↕≠input) {0𝕊𝕩: ∾'['‿𝕩‿','; 1𝕊𝕩: 𝕩∾"],"; 2𝕊𝕩: 𝕩}¨ input
+</pre>
+
+<p>The lines come in groups of three: the first list, the second list, and then a blank line.
+The first line of each group needs an opening bracket added to the beginning (to open the pair) and a comma added to the end (to separate the two lists in the pair).
+The second line of each group needs a closing bracket at the end (to close the pair) and a comma after (to separate it from the next pair).
+The blank lines are fine as is.
+Then we join all the lines together and drop the final trailing comma.
+Finally, we need to wrap the whole thing in one more set of brackets, to make it all one big list.
+</p>
+<h2>Using <code>•BQN</code></h2>
+
+<p>This approach is undoubtedly the easiest, and it's what I used to solve the problem in December.
+The idea is that the notation is almost valid BQN; we just need to replace the square brackets with angle brackets.
+Then we can use the system function <code>•BQN</code> to "eval" the string into a BQN list.
+</p>
+<pre>
+   a ← "[1,2,[],[3,4]]"
+   a + ('⟨'-'[') × '['=a
+"⟨1,2,⟨],⟨3,4]]"
+   "[⟨" (⊢ + -˜´∘⊣ × ⊏⊸=) a
+"⟨1,2,⟨],⟨3,4]]"
+</pre>
+
+<p>Here's the idea behind replacing a character with another character using a small example.
+I've written both an explicit expression and a tacit function.
+We take the difference between the new character and the old character,
+since adding this to the old character changes it into the new one.
+Then we use a mask of old character locations to make sure the addition happens only at those locations.
+</p>
+<p>Now to write our parser, we just replace both kinds of square brackets with the respective angle brackets and call <code>•BQN</code>.
+</p>
+<pre>
+   R ← ⊢ + -˜´∘⊣ × ⊏⊸=
+   Parser1 ← •BQN "]⟩" R "[⟨" R ⊢
+</pre>
+
+<p>Let's try it out.
+</p>
+<pre>
+   Parser1 data
+Segmentation fault (core dumped)
+</pre>
+
+<p>Uh oh! Well, here's a strike against this approach.
+</p>
+<p>I'm not sure what's going on to be honest.
+When I solved the problem in Decemeber I didn't do the "turn it all into one giant list" approach,
+and instead parsed the individual lines.
+So let's do that here.
+</p>
+<pre>
+   data2 ← (&lt;¯1⊸↓)˘∘‿3⥊input∾&lt;""
+</pre>
+
+<p>This complicated-looking line just works the data into a list of pairs of strings.
+First we append a blank line to the end, to complete the last group of 3 lines.
+Then we use a computed reshape to make an array with 3 columns.
+Finally, on each row of the array we drop the the blank line and enclose the two remaining lines.
+</p>
+<p>Now we just have to parse each string to get the final result.
+</p>
+<pre>
+   bqn ← Parser1¨¨ data2
+   ⊑bqn
+┌─
+· ┌─                                                  ┌─
+  · ┌─                              ┌─           ⟨⟩   · ┌─
+    · ⟨ ⟨ 8 7 8 5 4 ⟩ 6 ⟨ 4 6 ⟩ ⟩   · 6 ⟨ ⟨⟩ ⟩          · ⟨ ⟨ 8 0 0 7 1 ⟩ ⟨ 1 ⟩ 8 ⟩
+                                  ┘            ┘                                    ┘
+                                                    ┘                                 ┘
+                                                                                        ┘
+    2↑input
+⟨ "[[[[8,7,8,5,4],6,[4,6]]],[6,[[]]],[]]" "[[[[8,0,0,7,1],[1],8]]]" ⟩
+</pre>
+
+<p>Looks alright!
+Let's do a quick benchmark.
+</p>
+<pre>
+   100 Parser1¨¨•_timed data2
+0.074279465
+</pre>
+
+<p>Around 3/4 of a second for each run. So slow!
+</p>
+<h2>Recursive descent</h2>
+
+<p>This is not meant to be an introductory tutorial on recursive descent parsing.
+Rather, I want to show that "normal" algorithms are applicable in BQN.
+In fact, <a href="https://github.com/mlochbaum/Singeli">Singeli</a> uses a <a href="https://github.com/mlochbaum/Singeli/blob/master/singeli.bqn#L147">recursive descent parser</a>.
+</p>
+<p>We assume that the input is error-free and proceed in a classic two-stage tokenize-then-parse fashion.
+</p>
+<h3>Tokenizing</h3>
+
+<p>The token types are opening brackets, closing brackets, and numbers.
+We get rid of the commas, after we've used them to delimit the numbers.
+The tokenizer is actually array-style, I guess, since we just use <code>⊔</code> to split the string up.
+</p>
+<p>Behold!
+</p>
+<pre>
+   T ← (1-˜≠⟜','×·+`∊⟜"[]"∨·(»⊸&lt;)∊⟜('0'+↕10))⊸⊔
+   a ← "[999,2,[],[31,4167]]"
+   T a
+⟨ "[" "999" "2" "[" "]" "[" "31" "4167" "]" "]" ⟩
+</pre>
+
+<p>Okay, okay, springing that tacit tokenizer on you is a joke.
+Let's break it down.
+The overall strategy is to create a mask of token starting points.
+Then we're pretty much a sum scan and a group away from success.
+</p>
+<p>Each opening bracket and closing bracket starts a new group.
+However, a digit starts a new group iff it is not preceded by a digit.
+</p>
+<pre>
+   d ← '0'+↕10
+"0123456789"
+   a∊d
+⟨ 0 1 1 1 0 1 0 0 0 0 0 1 1 0 1 1 1 1 0 0 ⟩
+</pre>
+
+<p>We start by finding a mask of digits in the string.
+</p>
+<pre>
+   (»a∊d)≍a∊d
+┌─
+╵ 0 0 1 1 1 0 1 0 0 0 0 0 1 1 0 1 1 1 1 0
+  0 1 1 1 0 1 0 0 0 0 0 1 1 0 1 1 1 1 0 0
+                                          ┘
+   (»a∊d)&lt;a∊d
+⟨ 0 1 0 0 0 1 0 0 0 0 0 1 0 0 1 0 0 0 0 0 ⟩
+   »⊸&lt;a∊d
+⟨ 0 1 0 0 0 1 0 0 0 0 0 1 0 0 1 0 0 0 0 0 ⟩
+   a≍»⊸&lt;a∊d
+┌─
+╵ '[' '9' '9' '9' ',' '2' ',' '[' ']' ',' '[' '3' '1' ',' '4' '1' '6' '7' ']' ']'
+  0   1   0   0   0   1   0   0   0   0   0   1   0   0   1   0   0   0   0   0
+                                                                                  ┘
+</pre>
+
+<p>Comparing with the shifted mask lets us check if the preceding character was also a digit.
+The use of <code>&lt;</code> is a little BQN trick.
+For booleans <code>p</code> and <code>q</code>, <code>p&lt;q</code> is true iff <code>p</code> is 0 and <code>q</code> is 1.
+So now we have the start points of the number tokens.
+</p>
+<pre>
+   (a∊"[]")∨»⊸&lt;a∊d
+⟨ 1 1 0 0 0 1 0 1 1 0 1 1 0 0 1 0 0 0 1 1 ⟩
+   a≍(a∊"[]")∨»⊸&lt;a∊d
+┌─
+╵ '[' '9' '9' '9' ',' '2' ',' '[' ']' ',' '[' '3' '1' ',' '4' '1' '6' '7' ']' ']'
+  1   1   0   0   0   1   0   1   1   0   1   1   0   0   1   0   0   0   1   1
+                                                                                  ┘
+</pre>
+
+<p>To get the rest of the token start points, we just <code>∨</code> in all the bracket locations.
+</p>
+<pre>
+   +`(a∊"[]")∨»⊸&lt;a∊d
+⟨ 1 2 2 2 2 3 3 4 5 5 6 7 7 7 8 8 8 8 9 10 ⟩
+   a≍+`(a∊"[]")∨»⊸&lt;a∊d
+┌─
+╵ '[' '9' '9' '9' ',' '2' ',' '[' ']' ',' '[' '3' '1' ',' '4' '1' '6' '7' ']' ']'
+  1   2   2   2   2   3   3   4   5   5   6   7   7   7   8   8   8   8   9   10
+                                                                                  ┘
+</pre>
+
+<p>Taking a sum scan gives us a different number for each token, but each comma gets lumped in with the previous token.
+</p>
+<pre>
+   (','≠a)×+`(a∊"[]")∨»⊸&lt;a∊d
+⟨ 1 2 2 2 0 3 0 4 5 0 6 7 7 0 8 8 8 8 9 10 ⟩
+   a≍(','≠a)×+`(a∊"[]")∨»⊸&lt;a∊d
+┌─
+╵ '[' '9' '9' '9' ',' '2' ',' '[' ']' ',' '[' '3' '1' ',' '4' '1' '6' '7' ']' ']'
+  1   2   2   2   0   3   0   4   5   0   6   7   7   0   8   8   8   8   9   10
+                                                                                  ┘
+</pre>
+
+<p>Multiplying by a mask of non-commas zeros out the commas.
+</p>
+<pre>
+   1-˜(','≠a)×+`(a∊"[]")∨»⊸&lt;a∊d
+⟨ 0 1 1 1 ¯1 2 ¯1 3 4 ¯1 5 6 6 ¯1 7 7 7 7 8 9 ⟩
+   (1-˜(','≠a)×+`(a∊"[]")∨»⊸&lt;a∊d)⊔a
+⟨ "[" "999" "2" "[" "]" "[" "31" "4167" "]" "]" ⟩
+</pre>
+
+<p>We subtract 1 to drop the commas when we group and give the first group index 0.
+Finally, we group and voila!
+</p>
+<p>Getting from here to my definition of <code>T</code> is just standard tacit refactoring stuff.
+And to be honest <code>T</code> is hard for me to read, so I probably wouldn't write it that way.
+But we already have it, so let's continue to parsing.
+</p>
+<h3>Parsing</h3>
+
+<p>Now it's just standard recursive descent stuff.
+Here's a sketch of the grammar.
+</p>
+<pre>
+Value → List | Number
+List  → "[" Value* "]"
+</pre>
+
+<p>We write one function each for parsing values, lists, and numbers.
+</p>
+<pre>
+   ParseVal ← {"["≡⊑𝕩 ? ParseLst 𝕩; ParseNum 𝕩}
+   ParseNum ← {⟨10⊸×⊸+˜´⌽'0'-˜⊑𝕩, 1↓𝕩⟩}
+   ParseLst ← {
+    rslt←⟨⟩
+    val‿rest ← ⟨@,1↓𝕩⟩
+    {𝕤⋄val‿rest↩ParseVal rest ⋄ rslt∾↩&lt;val}•_while_{𝕤⋄"]"≢⊑rest}@
+    ⟨rslt, 1↓rest⟩
+   }
+</pre>
+
+<p>The basic idea is that a value is a list if it starts with "[", otherwise it's a number.
+To parse a number, we just do a standard string-to-number-left-fold thing on the first element,
+and we return that number along with the rest of the tokens.
+To parse a list, we build up a list <code>rslt</code> by repeatedly parsing a value off the front of the list
+until we hit a "]".
+Then we return <code>rslt</code> and the rest of the tokens.
+Gotta be careful to drop the brackets in the right spots and to enclose the value before appending to <code>rslt</code>!
+</p>
+<p>To parse a list, we tokenize, parse the list, and then take the value from the <code>⟨value, tokens⟩</code> pair the parser returns.
+</p>
+<pre>
+   Parser2 ← ⊑∘ParseLst∘T
+   Parser2 "[999,2,[],[31,4167]]"
+⟨ 999 2 ⟨⟩ ⟨ 31 4167 ⟩ ⟩
+</pre>
+
+<p>It works!
+</p>
+<pre>
+   bqn ≡ Parser2¨¨ data2
+1
+</pre>
+
+<p>It agrees with the parsing we did earlier using <code>•BQN</code>,
+</p>
+<pre>
+   bqn ≡ Parser2 data
+1
+</pre>
+
+<p>and works on the "one giant string" approach.
+</p>
+<pre>
+   100 Parser2•_timed data
+0.007146561
+   100 Parser2¨¨•_timed data2
+0.006849455
+</pre>
+
+<p>Not to mention it's around 10x as fast as using <code>•BQN</code>.
+</p>
+<h2>Array-style parsing</h2>
+
+<p>Using array techniques, we can achieve even faster parsing.
+Both the <a href="https://github.com/mlochbaum/BQN/blob/master/src/c.bqn">self-hosted compiler</a> and the <a href="https://github.com/mlochbaum/bqn-libs/blob/master/json.bqn">bqn-libs json parser</a> use an array style.
+The following ideas come from studying the json parser.
+(I haven't looked at the compiler in any depth.)
+</p>
+<p>The fundamental idea for handling nesting is to reorder the tokens by depth.
+Once we've done that, there's a sense in which we've already mostly parsed the tokens!
+(At least for a simple case like these nested lists.)
+</p>
+<p>Here's our running example:
+</p>
+<pre>
+   tok ← T "[1,2,[3,4,[5,6]],7,8,[9,10]]"
+⟨ "[" "1" "2" "[" "3" "4" "[" "5" "6" "]" "]" "7" "8" "[" "9" "10" "]" "]" ⟩
+</pre>
+
+<p>Let's find the depth.
+</p>
+<pre>
+   o ← "["⊸≡¨tok
+   c ← "]"⊸≡¨tok
+   tok≍+`o-c
+┌─
+╵ "[" "1" "2" "[" "3" "4" "[" "5" "6" "]" "]" "7" "8" "[" "9" "10" "]" "]"
+  1   1   1   2   2   2   3   3   3   2   1   1   1   2   2   2    1   0
+                                                                           ┘
+</pre>
+
+<p>Opening brackets increase depth by 1 at the bracket, and closing brackets decrease depth by 1 at the bracket.
+</p>
+<p>We can use <code>⍋</code> to reorder the tokens according to their depths.
+</p>
+<pre>
+   (⍋+`o-c)⊏tok
+⟨ "]" "[" "1" "2" "]" "7" "8" "]" "[" "3" "4" "]" "[" "9" "10" "[" "5" "6" ⟩
+</pre>
+
+<p>This is really weird-looking at first, but once you learn how to read it, it's nicer to work with than the original order.
+</p>
+<p>Each closing bracket is like a nested list waiting to be filled, or an arrow pointing to a sublist.
+Each opening bracket signals the start of a new sublist.
+The list being pointed to by a closing bracket is the next unused sublist.
+</p>
+<p>If we replace each closing bracket with a <code>↓</code> and each opening bracket with a <code>∘</code>, just for pictorial purposes,
+we can arrange the list into the follow diagram.
+</p>
+<pre>
+0 ↓
+1 ∘  1  2  ↓  7  8  ↓
+2          ∘ 3 4 ↓  ∘ 9 10
+3                ∘ 5 6
+</pre>
+
+<p>The downward arrows represent sublists, and the circles represent list starting points.
+The numbers in the first column are the depths.
+The first closing bracket is the only token with depth zero, and it points at the whole list.
+The element between 2 and 7 and the last element are each sublists, the first of which has its own sublist.
+</p>
+<p>We almost have an algorithm that goes something like this:
+for each closing bracket, find the next unused sublist and replace the closing bracket with the sublist.
+</p>
+<p>For example, we might build the list this way:
+</p><pre>
+] → 1 2 ] 7 8 ] → 1 2 ⟨3 4 ]⟩ 7 8 ⟨9 10⟩ → 1 2 ⟨3 4 ⟨5 6⟩⟩ 7 8 ⟨9 10⟩
+</pre>
+
+<p>How can we turn this into code?
+</p>
+<p>Instead of ordering by depth, we can go further and split by depth.
+</p>
+<pre>
+   (+`o-c)⊔tok
+⟨ ⟨ "]" ⟩ ⟨ "[" "1" "2" "]" "7" "8" "]" ⟩ ⟨ "[" "3" "4" "]" "[" "9" "10" ⟩ ⟨ "[" "5" "6" ⟩ ⟩
+</pre>
+
+<p>And then perhaps we can use some kind of fold to fill in the "gaps" in each list with the lists from the next element.
+Going left to right would build the list "top down" like the example above.
+One snag with this approach is that at each step we have to search at a different depth for the closing brackets.
+Sure, we know exactly what depth to search at, but we can eliminate this complication entirely by going right to left.
+This builds the list bottom up, so at every step we are plugging sublists into a list at the outermost depth.
+</p>
+<p>This would look something like:
+</p><pre>
+5 6 → ⟨3 4 ⟨5 6⟩⟩ ⟨9 10⟩ → 1 2 ⟨3 4 ⟨5 6⟩⟩ 7 8 ⟨9 10⟩
+</pre>
+
+<p>Here is the complete idea. We're going to perform a right fold. 
+At each step, the operand to the fold splits up the right argument at the opening brackets
+and then plugs the resulting lists into the closing brackets of the left argument.
+</p>
+<p>Thus we need two functions: one to split up the right argument on opening brackets and one to plug the lists into the closing brackets.
+</p>
+<p>Now we can write some code.
+</p>
+<pre>
+   # split up based on [
+   Split ← {m←"["⊸≡¨𝕩 ⋄ 1⊸↓¨(1-˜+`m)⊔𝕩}
+   Split "["‿"3"‿"4"‿"]"‿"["‿"9"‿"10"
+⟨ ⟨ "3" "4" "]" ⟩ ⟨ "9" "10" ⟩ ⟩
+
+   # replace "]" in 𝕩 with 𝕨
+   Replace ← {m←"]"⊸≡¨𝕩 ⋄ 𝕨⌾(m⊸/)𝕩}
+   ⟨"3"‿"4"‿"]", "9"‿"10"⟩ Replace "["‿"1"‿"2"‿"]"‿"7"‿"8"‿"]"
+⟨ "[" "1" "2" ⟨ "3" "4" "]" ⟩ "7" "8" ⟨ "9" "10" ⟩ ⟩
+
+   {(Split 𝕩) Replace 𝕨}´ (+`o-c)⊔tok
+┌─
+· ┌─
+  · "1" "2" ⟨ "3" "4" ⟨ "5" "6" ⟩ ⟩ "7" "8" ⟨ "9" "10" ⟩
+                                                         ┘
+                                                           ┘
+ <br>
+   Replace˜⟜Split´(+`o-c)⊔tok
+┌─
+· ┌─
+  · "1" "2" ⟨ "3" "4" ⟨ "5" "6" ⟩ ⟩ "7" "8" ⟨ "9" "10" ⟩
+                                                         ┘
+                                                           ┘
+</pre>
+
+<p>It works!
+The whole thing is inside a singleton list because of that left-most closing bracket,
+so we'll need to apply <code>⊑</code> at the end.
+Also, we've still got to turn strings into numbers at the end.
+We can write a string to number function and apply it at depth 1,
+but there's one small catch that's not apparent from our example so far:
+if we parse an empty list, then applying our string to number function at depth 1 will apply it to that empty list.
+So we need to check for empty input to the string to number function.
+</p>
+<p>Other than that, we just need to package this together into a parser.
+</p>
+<pre>
+   ToNum ← {⟨⟩≡𝕩 ? ⟨⟩ ; 10⊸×⊸+˜´⌽𝕩-'0'}
+   Parser3 ← {ToNum⚇1 ⊑ Replace˜⟜Split´ (+`("["⊸≡¨𝕩)-"]"⊸≡¨𝕩)⊔𝕩}∘T
+   Parser3 "[1,2,[3,4,[5,6]],7,8,[9,10]]"
+┌─
+· 1 2 ⟨ 3 4 ⟨ 5 6 ⟩ ⟩ 7 8 ⟨ 9 10 ⟩
+                                   ┘
+   bqn ≡ Parser3 data
+1
+   bqn ≡ Parser3¨¨ data2
+1
+</pre>
+
+<p>Looking good.
+Let's see how fast it is.
+</p>
+<pre>
+   •Show 100 Parser3•_timed data
+0.015287862
+   •Show 100 Parser3¨¨•_timed data2
+0.014943577
+</pre>
+
+<p>Oof! It's twice as slow as the conventional parser!
+</p>
+<p>That's okay because this was really just a warm-up to get us in the array mood.
+Even though what we have now is slow, the concepts we used will help us write a fast parser.
+And isn't it kind of amazing how we parsed a recursive data structure with just some arithmetic and primitives like <code>⊔</code> and folding?
+I think it's cool.
+</p>
+<p>Anyway, we can make significant improvements.
+First of all, have you been feeling the nagging pain of using lists of strings instead of just a string?
+It's so annoying writing <code>"["⊸≡¨tok</code> instead of just <code>'['=tok</code>, and it's probably slower too.
+Let's try to keep our representations "flatter".
+</p>
+<p>So the new idea is that the tokenizer will just output a string, meaning that each token is now a single character.
+This leaves no room for the values of the tokens (the numbers themselves), just the token types,
+so actually the tokenizer will output a string and a list of numbers.
+</p>
+<pre>
+   a ← "[1,2,[3,4,[5,6]],7,8,[9,10]]" # example string
+   a≍n ← a∊'0'+↕10 # numbers
+┌─
+╵ '[' '1' ',' '2' ',' '[' '3' ',' '4' ',' '[' '5' ',' '6' ']' ']' ',' '7' ',' '8' ',' '[' '9' ',' '1' '0' ']' ']'
+  0   1   0   1   0   0   1   0   1   0   0   1   0   1   0   0   0   1   0   1   0   0   1   0   1   1   0   0
+                                                                                                                  ┘
+   a≍ns ← »⊸&lt;n # number starts
+┌─
+╵ '[' '1' ',' '2' ',' '[' '3' ',' '4' ',' '[' '5' ',' '6' ']' ']' ',' '7' ',' '8' ',' '[' '9' ',' '1' '0' ']' ']'
+  0   1   0   1   0   0   1   0   1   0   0   1   0   1   0   0   0   1   0   1   0   0   1   0   1   0   0   0
+                                                                                                                  ┘
+   (1-˜n×+`ns)⊔a # numbers as strings
+⟨ "1" "2" "3" "4" "5" "6" "7" "8" "9" "10" ⟩
+   num ← 10⊸×⊸+˜´∘⌽¨ '0'-˜(1-˜n×+`ns)⊔a # numbers
+⟨ 1 2 3 4 5 6 7 8 9 10 ⟩
+</pre>
+
+<p>This is the idea behind the part of the tokenizer that extracts the numbers into one flat list.
+</p>
+<pre>
+   a≍f ← ns∨a∊"[]" # first characters of tokens as mask
+┌─
+╵ '[' '1' ',' '2' ',' '[' '3' ',' '4' ',' '[' '5' ',' '6' ']' ']' ',' '7' ',' '8' ',' '[' '9' ',' '1' '0' ']' ']'
+  1   1   0   1   0   1   1   0   1   0   1   1   0   1   1   1   0   1   0   1   0   1   1   0   1   0   1   1
+                                                                                                                  ┘
+   f/a # first character of each token as string
+"[12[34[56]]78[91]]"
+   tok ← '0'¨⌾((f/n)⊸/)f/a # replace numbers with 0
+"[00[00[00]]00[00]]"
+</pre>
+
+<p>Here is the second part of the tokenizer.
+We get the first characters of each token by adding in the brackets to the number starts.
+Then we replace all the numbers with 0.
+The idea is that this string now represents the token types with the brackets standing for themselves
+and the 0s standing for a number type token.
+The numbers themselves are separated out as we showed previously.
+Any character would do to represent the numbers,
+but I chose 0 because it's what the json parser does and it reminds me of a number.
+</p>
+<p>Putting it all together:
+</p>
+<pre>
+   Tokenize ← {
+     n ← 𝕩∊'0'+↕10
+     ns ← »⊸&lt;n
+     num ← 10⊸×⊸+˜´∘⌽¨ '0'-˜(1-˜n×+`ns)⊔𝕩
+     f ← ns∨𝕩∊"[]"
+     tok ← '0'¨⌾((f/n)⊸/)f/𝕩
+     tok‿num
+   }
+   Tokenize "[1,2,[3,4,[5,6]],7,8,[9,10]]"
+⟨ "[00[00[00]]00[00]]" ⟨ 1 2 3 4 5 6 7 8 9 10 ⟩ ⟩
+</pre>
+
+<p>Now for parsing we're going to build the list from the bottom up again, using the same depth ordering ideas.
+We obviously can't operate only on the token types (the string the tokenizer produces);
+we need to incorporate the token values (the numbers) at some point.
+The way we'll do that is operating on the token types to produce indices that we use to select from a list of values.
+</p>
+<p>So if we were trying to produce the final result list, which in a depth-based token-types-only representation would look like <code>00]00]</code>,
+we need to somehow say that the first 0 stands for 1, the second 0 for 2, the first closed bracket for the whole list <code>⟨3,4,⟨5,6⟩⟩</code>,
+the third 0 for 7, the fourth 0 for 8, and the final closed bracket for the whole list <code>⟨9,10⟩</code>.
+Then we could just grab all the values we mentioned and put them together as <code>⟨1,2,⟨3,4,⟨5,6⟩⟩,7,8,⟨9,10⟩⟩</code>.
+</p>
+<p>The way we'll be able to reference a whole sublist like <code>⟨3,4,⟨5,6⟩⟩</code> is by building from the bottom up, as previously mentioned,
+so that by the time we need to use a value, we've already built it.
+At the beginning, the values we have are just the numbers themselves.
+We start with the deepest list <code>⟨5,6⟩</code>, which we can build by indexing into the list of values (which again at this point is just numbers).
+Then we append this to the list of values.
+Now in a future step where we need to build <code>⟨3,4,⟨5,6⟩⟩</code>, all three elements of this list already reside in our list of values,
+and all we need to do is index into the list of values to assemble them into a new value that gets appended to the end.
+</p>
+<p>So let's start by trying to organize the tokens so we can build the values in the correct order.
+</p>
+<pre>
+   o ← '['=tok
+   c ← ']'=tok
+   tok≍+`o-c # depth
+┌─
+╵ '[' '0' '0' '[' '0' '0' '[' '0' '0' ']' ']' '0' '0' '[' '0' '0' ']' ']'
+  1   1   1   2   2   2   3   3   3   2   1   1   1   2   2   2   1   0
+                                                                          ┘
+   g ← ⍋+`('['=tok)-']'=tok # depth ordering indices
+⟨ 17 0 1 2 10 11 12 16 3 4 5 9 13 14 15 6 7 8 ⟩
+   u ← g⊏tok # tokens reordered by depth
+"][00]00][00][00[00"
+</pre>
+
+<p>Here's that same reorder by depth trick we've already discussed,
+but this time it's a little less painful to write since we just have a string instead of a list of strings.
+</p>
+<p>Here's the next big idea.
+</p>
+<pre>
+   u≍r ← +`'['=u # sublists in depth ordering
+┌─
+╵ ']' '[' '0' '0' ']' '0' '0' ']' '[' '0' '0' ']' '[' '0' '0' '[' '0' '0'
+  0   1   1   1   1   1   1   1   2   2   2   2   3   3   3   4   4   4
+                                                                          ┘
+</pre>
+
+<p>By taking a sum scan of a mask of opening bracket locations in the depth ordering we can give a number to each sublist of the list.
+This is the order we have to construct values in, with higher numbers going first.
+It's reminiscent of how we split the on opening brackets in our earlier approach.
+</p>
+<p>Now what we need are indices that tell us where to pull the values from. 
+For example, we start with list 4 (the <code>[00</code> at the end), so we need to know that those 0s are associated with indices 4 and 5,
+since <code>4‿5 ⊏ num</code> is the <code>5‿6</code> we want.
+Then later when constructing list 2, which looks like <code>[00]</code>, we need to know that the 0s are associated with indices 2 and 3,
+and the closing bracket is associated with index 10, since (after appending <code>5‿6</code> to a list of values <code>vals</code> at index 10) we have <code>2‿3‿10 ⊏ vals</code> giving <code>⟨3,4,⟨5,6⟩⟩</code>.
+</p>
+<p>Here we go.
+</p>
+<pre>
+   tok≍f ← tok∊"0]" # mask of "values": numbers and sublists
+┌─
+╵ '[' '0' '0' '[' '0' '0' '[' '0' '0' ']' ']' '0' '0' '[' '0' '0' ']' ']'
+  0   1   1   0   1   1   0   1   1   1   1   1   1   0   1   1   1   1
+                                                                          ┘
+   (f/tok)≍(f/'0'=tok)+2×f/']'=tok # gives numbers 1 and sublists 2
+┌─
+╵ '0' '0' '0' '0' '0' '0' ']' ']' '0' '0' '0' '0' ']' ']'
+  1   1   1   1   1   1   2   2   1   1   1   1   2   2
+                                                          ┘
+   vi ← ⍋⍋(f/'0'=tok)+2×f/']'=tok # value indices
+⟨ 0 1 2 3 4 5 10 11 6 7 8 9 12 13 ⟩
+   (f/tok)≍vi
+┌─
+╵ '0' '0' '0' '0' '0' '0' ']' ']' '0' '0' '0' '0' ']' ']'
+  0   1   2   3   4   5   10  11  6   7   8   9   12  13
+                                                          ┘
+</pre>
+
+<p>Here we filter away the opening brackets, keeping only those tokens that represent values: 0 for numbers and ] for sublists.
+Then we assign each value a number working left to right, but with numbers always coming before sublists.
+That <code>⍋⍋</code> is the ordinals pattern, which shows which index the element would end up at if sorted.
+(You can read about that <a href="https://mlochbaum.github.io/BQN/doc/order.html#ordinals">here</a>.)
+</p>
+<p>This is close to what we want.
+The 0s each have been associated with the proper index.
+However, the closing brackets (representing sublists) have not.
+</p>
+<p>We need to bring in our previous work <code>r</code> where we numbered the lists.
+But <code>r</code> is in depth ordering and <code>vi</code> is in the original ordering, so we put <code>r</code> back into original ordering and call it <code>l</code>.
+</p>
+<pre>
+   tok≍l ← (⍋g)⊏r # sublist index
+┌─
+╵ '[' '0' '0' '[' '0' '0' '[' '0' '0' ']' ']' '0' '0' '[' '0' '0' ']' ']'
+  1   1   1   2   2   2   4   4   4   2   1   1   1   3   3   3   1   0
+                                                                          ┘
+</pre>
+
+<p>We invert the permutation <code>g</code> with <code>⍋</code> to translate from the depth ordering back to the original ordering.
+We call the resulting numbers the "sublist index" here.
+(It's really a pain to name a new idea. I don't wanna name things! That's why I'm a BQN programmer.)
+</p>
+<p>We can use <code>l</code> to fix <code>vi</code> by finding the sublist index associated with each closing bracket.
+If we just take the sublist index at a closing bracket, we get the sublist index associated with the list containing it.
+So we need the sublist index at the token before the closing bracket to get the index of the sublist itself.
+</p>
+<pre>
+   c/l
+⟨ 2 1 1 0 ⟩
+   c/»l
+⟨ 4 2 3 1 ⟩
+</pre>
+
+<p>Here we show <code>c/l</code> and <code>c/»l</code>. The first element of <code>c/l</code> is 2, indicating that the first closing bracket (which closes <code>⟨5,6⟩</code>) represents a sublist contained in the sublist with index 2 (i.e. <code>⟨3,4,⟨5,6⟩⟩</code>).
+The first element of <code>c/»l</code>, however, is 4, indicating that the sublist <code>⟨5,6⟩</code> is itself sublist number 4.
+That's the number we want.
+</p>
+<pre>
+   (≠num)+≠⊸-c/»l
+⟨ 10 12 11 13 ⟩
+</pre>
+
+<p>Sublist number 4 is the first sublist to be constructed, and after being constructed and appended to the value list it has index 10.
+The arithmetic above adjusts the sublist indices to become indices into the value list.
+We subtract each sublist index from the number of sublists to invert the order, and then add the result to the number of numbers,
+to offset the indices correctly.
+</p>
+<pre>
+   nv ← ≠num
+   i ← vi ⊏ (↕nv) ∾ nv+≠⊸-c/»l # Adjust for sublist ordering
+⟨ 0 1 2 3 4 5 10 12 6 7 8 9 11 13 ⟩
+   (f/tok)≍i
+┌─
+╵ '0' '0' '0' '0' '0' '0' ']' ']' '0' '0' '0' '0' ']' ']'
+  0   1   2   3   4   5   10  12  6   7   8   9   11  13
+                                                          ┘
+</pre>
+
+<p>From here, it's not hard to complete the value indices list.
+We append the value indices just calculated for the sublists to the list <code>↕≠num</code>, which are the value indices for the numbers.
+Since both <code>vi</code> and <code>c»l</code> reference the closing brackets in the original left to right order, indexing into this list with <code>vi</code> pulls everything out in the correct order.
+</p>
+<pre>
+   ⌽(1-˜f/l)⊔i
+⟨ ⟨ 4 5 ⟩ ⟨ 8 9 ⟩ ⟨ 2 3 10 ⟩ ⟨ 0 1 12 6 7 11 ⟩ ⟩
+</pre>
+
+<p>We group these value indices <code>i</code> using the sublist indices from <code>l</code> and reverse the result to finally complete the task of arranging the value indices.
+We use <code>1-˜f/l</code> instead of just <code>l</code> because we need to remove the opening brackets and drop the final closing bracket.
+Now we can see the first element contains indices 4 and 5, which correspond to the values 5 and 6.
+The third element contains the indices 2, 3, and 10, which correspond to values 3, 4, and <code>⟨5,6⟩</code>.
+Etc. 
+</p>
+<p>All that's left to do is the indexing and appending described earlier.
+</p>
+<pre>
+   vals ← num
+   {vals∾↩&lt;𝕩⊏vals⋄@}¨ ⌽(1-˜f/l)⊔i
+   ¯1⊑vals
+┌─
+· 1 2 ⟨ 3 4 ⟨ 5 6 ⟩ ⟩ 7 8 ⟨ 9 10 ⟩
+                                   ┘
+</pre>
+
+<p>It works!
+The list of values <code>vals</code> starts off as just the numbers <code>num</code>.
+With each application of the block function we index into <code>vals</code> and append the result to <code>vals</code>.
+The <code>⋄@</code> is at the end of the block both to signal that we are using the block for side-effects only
+and to not waste time and space building a list of results.
+</p>
+<p>We're not quite done yet!
+There is one final wrinkle that our example so far hasn't made clear.
+We need to ensure that the result of <code>(1-˜f/l)⊔i</code> always has as many elements as there are closing brackets
+(even if some or all of them are empty) in order to accomodate empty lists.
+This is roughly because each closing bracket represents a sublist value,
+so we always need to build at least that many values.
+</p>
+<p>Thus we change <code>1-˜f/l</code> to <code>(+´c)∾˜1-˜f/l</code> to append the number of closing brackets to the end.
+Group has the option of using a left argument with an extra last element relative to right argument,
+and this last element sets the minimum number of elements of the result.
+</p>
+<p>Let's put it all together.
+</p>
+<pre>
+   Parser4 ← {
+     tok‿num ← Tokenize 𝕩
+     g ← ⍋+`('['=tok)-(c←']'=tok) # depth ordering indices
+     r ← +`'['=g⊏tok # sublists in depth ordering
+     l ← (⍋g)⊏r # sublist index
+     f ← tok∊"0]" # mask of "values": numbers and sublists
+     vi ← ⍋⍋(f/'0'=tok)+2×f/c # value indices
+     nv ← ≠num
+     i ← vi ⊏ (↕nv) ∾ nv+≠⊸-c/»l # Adjust for sublist ordering
+     vals ← num
+     {vals∾↩&lt;𝕩⊏vals⋄@}¨ ⌽((+´c)∾˜1-˜f/l)⊔i
+     ¯1⊑vals
+   }
+   •Show Parser4 "[1,2,[3,4,[5,6]],7,8,[9,10]]"
+┌─
+· 1 2 ⟨ 3 4 ⟨ 5 6 ⟩ ⟩ 7 8 ⟨ 9 10 ⟩
+                                   ┘
+
+   •Show bqn ≡ Parser4 data
+1
+   •Show bqn ≡ Parser4¨¨ data2
+1
+
+   •Show 100 Parser4•_timed data
+0.004316795
+   •Show 100 Parser4¨¨•_timed data2
+0.005003989
+</pre>
+
+<p>It works, and it's really fast! It's also the only parser that's faster on the one big string approach.
+</p>
+<h2>Final Comparison</h2>
+
+<p>Using <code>•BQN</code> is definitely the easiest, but it is slow and has problems parsing large lists, at least on my machine.
+</p>
+<p>For a little more effort (at least if you're already familiar with recursive descent) we can get a much more performant parser.
+Probably should be your method of choice if <code>•BQN</code> is too slow.
+</p>
+<p>A well-written array style parser is the fastest (and coolest obviously), but wow is it confusing to implement!
+For this Advent of Code problem it's certainly not worth the trouble.
+I mean, even just using <code>•BQN</code> works fine honestly.
+If we had to parse way more data, or reuse this parser many times, the array method would start to make sense.
+Also if the lists had very very deep nesting, the recursive parser would hit the maximum recursion limit and fail.
+</p>
+<p>Here's a little table recapping the time in seconds it took each method to parse my input file.
+Each time is the average of 100 runs.
+</p>
+<pre>
+          |   data         data2
+------------------------------------
+•BQN      | N/A          0.074279465
+Recursive | 0.007146561  0.006849455
+Array v1  | 0.015287862  0.014943577
+Array v2  | 0.004316795  0.005003989
+</pre>
+
+<p>Happy parsing! &lt;3
+</p>
+</body>
+</html>
