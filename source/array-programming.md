@@ -22,8 +22,8 @@ I'd also like to complete the earlier years in BQN, and perhaps even write up so
 
 ## Project Euler
 
-[https://github.com/saltysylvi/j-project-euler](https://github.com/saltysylvi/bqn-aoc2022)
+[https://github.com/saltysylvi/j-project-euler](https://github.com/saltysylvi/j-project-euler)
 
-I'm trying to create a single 100 line j file where each line solves the corresponding Project Euler problem.
+I'm trying to create a single 100 line J script where each line solves the corresponding Project Euler problem.
 I'm also explaining (not in very much detail, tbh) how the solutions work.
 Not very far yet.
