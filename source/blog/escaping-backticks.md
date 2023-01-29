@@ -92,7 +92,7 @@ This is exactly what the fork `>⟜»∨>⟜«` does.
 "So what I typed to get _+``↕10_ was _``+````↕10``_."
 ```
 
-For illustrative purposes, I've replace the outer backticks with underscores.
+For illustrative purposes, I've replaced the outer backticks with underscores.
 There's the first statement of the block down.
 
 Now we just need to filter out one of each pair of inner backticks.
@@ -103,7 +103,7 @@ The inner backticks are just `t∧¬o`, all the backticks without the outer ones
 ⟨ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 1 1 0 1 1 1 1 0 0 0 1 1 0 0 ⟩
 ```
 
-To get a mask of just one of the backticks from each pair at first I tried `(¬∧⟜«t∧¬o)/`.
+To filter out one of the backticks from each pair at first I tried `(¬∧⟜«t∧¬o)/`.
 The critical part, `∧⟜«`, checks if a value is 1 and the next value is 1.
 But that doesn't work since it will turn a whole run of backticks into a single backtick.
 
