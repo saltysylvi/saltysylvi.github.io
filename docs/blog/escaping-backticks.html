@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Escaping backticks in my BQN site generator</title>
+<link href="../main.css" rel="stylesheet">
+</head>
+<body>
+<h1>Escaping backticks in my BQN site generator</h1>
+
+<p>01/29/2023
+</p>
+<p>Updating my BQN site generator to allow backticks inside inline code sections.
+</p>
+<hr>
+
+<p>The <a href="site-generator-docs-0.html">first version of my BQN site generator</a> didn't allow any escaping of backticks within a backtick delimited inline code section.
+This is pretty annoying when writing BQN, since the backtick is a crucial one-modifier, Scan.
+</p>
+<p>But now check it out: <code>+`↕10</code>.
+Inline code with a backtick inside it!
+</p>
+<p>The syntax for this is like BQN's strings: a backtick starts an inline code section and a second backtick ends the section unless it is immediately followed by a second backtick, in which case the pair of backticks is treated as a single backtick and the code section continues.
+</p>
+<p>So what I typed to get <code>+`↕10</code> was <code>`+``↕10`</code>.
+</p>
+<p>As I mentioned, this is how BQN strings work, so I'm sure there's something instructive in the self-hosted compiler. 
+One day I'll look at it, but for now I decided I would rather just write something myself.
+</p>
+<h2>The change</h2>
+
+<p>Line 8 changed from
+</p><pre>
+lines {∾⍟(1&lt;≡)("&lt;code&gt;"‿"&lt;/code&gt;"⥊˜≠)⌾(('`'=𝕩)⊸/)𝕩}¨⌾((¬b)⊸/)↩
+</pre>
+<p>to
+</p><pre>
+lines {o←(&gt;⟜»∨&gt;⟜«)≠`⊸∨t←'`'=𝕩 ⋄ ∾⍟(1&lt;≡)(¬&lt;`t∧¬o)/("&lt;code&gt;"‿"&lt;/code&gt;"⥊˜≠)⌾(o⊸/)𝕩}¨⌾((¬b)⊸/)↩
+</pre>
+
+<p>This is now a really long and ugly line.
+But honestly the whole script is written to be replaced,
+and I'm documenting how this line works in this blog post, so I'm not super concerned.
+</p>
+<h2>How it worked before</h2>
+
+<p>The line schematically looks like <code>lines {--block--}¨⌾((¬b)⊸/)↩</code>.
+</p>
+<p>The <code>lines</code> on the left and <code>↩</code> all the way on the right tell us that we are modifying <code>lines</code> with the monadic function in the middle.
+</p>
+<p>The variable <code>b</code> is a mask for the lines of the markdown file, where a 1 means that the line is part of a code block and a 0 means that a line is not part of a code block.
+So the part on the far right <code>⌾((¬b)⊸/)</code> means that the block is only applied to lines that are not part of a code block. I.e. we don't allow inline code inside a code block.
+</p>
+<p>The block gets applied to Each (<code>¨</code>) line, <code>𝕩</code>.
+The Under, <code>⌾(('`'=𝕩)⊸/)</code>, grabs all the backticks in the line, does something to them, and then puts the results back in place of the backticks.
+The "something" done to the backticks is the fork <code>("&lt;code&gt;"‿"&lt;/code&gt;"⥊˜≠)</code>,
+which reshapes the pair of opening and closing code tags so there are as many tags as backticks.
+Thus, each opening backtick is replaced with an opening tag and each closing backtick with a closing tag.
+</p>
+<p>Finally, <code>∾⍟(1&lt;≡)</code> joins everything together if the depth of the list is greater than 1.
+Depth greater than 1 happens when we've replaced a backtick (a character) with a code tag (a string), and that's when we need to join back into a string.
+If we've made no replacements, then we already have just a string, we don't need to join, and attempting the join results in an error.
+</p>
+<h2>How it works now</h2>
+
+<p>The overall strategy is the same; only the block has changed.
+The block now has two statements in it.
+The first statement calculates a mask of unescaped or "outer" (hence <code>o</code>) backticks.
+The second statement replaces the outer backticks with code tags, just like before,
+but now before joining it filters out one backtick from each pair of escaped/inner backticks.
+</p>
+<p>To calculate the outer backticks, first we get a mask of all backticks <code>t</code>.
+</p>
+<pre>
+   a ← "So what I typed to get `+``↕10` was ```+````↕10```."
+   t←'`'=a
+⟨ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 1 0 0 0 1 0 0 0 0 0 1 1 1 0 1 1 1 1 0 0 0 1 1 1 0 ⟩
+</pre>
+
+<p>Then we use the <code>≠`⊸∨</code> trick to "fill-in" between the backticks.
+A <code>≠`</code> flips between 0 and 1 every time it hits a 1.
+When it hits the first backtick it makes everything 1 until the the second backtick at which point it becomes 0.
+Then everything stays 0 until it hits the third backtick, at which point everything becomes 1s until the fourth backtick.
+Since it changes back to 0 at the even number backticks, we need the <code>⊸∨</code> part to add the even number backticks back in.
+</p>
+<pre>
+   ≠`⊸∨t←'`'=a
+⟨ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1 0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 ⟩
+</pre>
+
+<p>Now we need to get the outer 1s of each group of 1s.
+Those are values that are either strictly greater than the value before them
+or strictly greater than the value after them.
+This is exactly what the fork <code>&gt;⟜»∨&gt;⟜«</code> does.
+</p>
+<pre>
+   o←(&gt;⟜»∨&gt;⟜«)≠`⊸∨t←'`'=a
+⟨ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 ⟩
+   a↩'_'¨⌾(o⊸/)a
+"So what I typed to get _+``↕10_ was _``+````↕10``_."
+</pre>
+
+<p>For illustrative purposes, I've replace the outer backticks with underscores.
+There's the first statement of the block down.
+</p>
+<p>Now we just need to filter out one of each pair of inner backticks.
+The inner backticks are just <code>t∧¬o</code>, all the backticks without the outer ones.
+</p>
+<pre>
+   t∧¬o
+⟨ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 1 1 0 1 1 1 1 0 0 0 1 1 0 0 ⟩
+</pre>
+
+<p>To get a mask of just one of the backticks from each pair at first I tried <code>(¬∧⟜«t∧¬o)/</code>.
+The critical part, <code>∧⟜«</code>, checks if a value is 1 and the next value is 1.
+But that doesn't work since it will turn a whole run of backticks into a single backtick.
+</p>
+<pre>
+   (¬∧⟜«t∧¬o)/a
+"So what I typed to get _+`↕10_ was _`+`↕10`_."
+</pre>
+
+<p>We're supposed to have 2 backticks after the second <code>+</code>, not just 1.
+</p>
+<p>We need an operation that removes every other 1 from a run of 1s.
+It turns out that this is exactly what <code>&lt;`</code> does.
+</p>
+<pre>
+   (¬&lt;`t∧¬o)/a
+"So what I typed to get _+`↕10_ was _`+``↕10`_."
+</pre>
+
+<p>Weird but useful.
+When the <code>&lt;</code> scan hits a 1 after a 0, it outputs 1, but when it hits a 1 after a 1 it outputs 0.
+(I didn't realize this on my own by the way! I saw this trick in some code Marshall wrote somewhere.)
+</p>
+<p>And there you have it, BQN-style escaping implemented in BQN!
+</p>
+<p>Happy array programming! &lt;3
+</p>
+</body>
+</html>
