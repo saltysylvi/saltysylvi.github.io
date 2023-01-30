@@ -21,6 +21,7 @@ Md2html ← {filename 𝕊 lines:
         ∾{⥊P˘∘‿3⥊𝕩}⌾(((≠g)↑/⁼⥊(/a)+⌜↕3)⊸/)g
     }⍟(∨´"]("⊸⍷)¨ lines
     ⟨"<!DOCTYPE html>","<html lang=""en"">","<head>","<meta charset=""utf-8"">",
+    "<meta name=""viewport"" content=""width=device-width, initial-scale=0.5"">",
     title, css, "</head>", "<body>"⟩∾lines∾⟨"</body>", "</html>"⟩
 }
 sourceFiles ← ∾{(".md"≡¯3⊸↑)¨⊸/ (𝕩∾'/')⊸∾¨•file.List 𝕩}¨ "source"‿"source/blog"
