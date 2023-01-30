@@ -124,7 +124,7 @@ It turns out that this is exactly what `<``` does.
 
 Weird but useful.
 When the `<` scan hits a 1 after a 0, it outputs 1, but when it hits a 1 after a 1 it outputs 0.
-(I didn't realize this on my own by the way! I saw this trick in some code Marshall wrote somewhere.)
+By the way, this trick comes from the [Scan documentation](https://mlochbaum.github.io/BQN/doc/scan.html).
 
 And there you have it, BQN-style escaping implemented in BQN!
 
