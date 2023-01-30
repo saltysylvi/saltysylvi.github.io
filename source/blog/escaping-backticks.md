@@ -27,7 +27,7 @@ lines {∾⍟(1<≡)("<code>"‿"</code>"⥊˜≠)⌾(('`'=𝕩)⊸/)𝕩}¨⌾(
 ```
 to
 ```
-lines {o←(>⟜»∨>⟜«)≠`⊸∨t←'`'=𝕩 ⋄ ∾⍟(1<≡)(¬<`t∧¬o)/("<code>"‿"</code>"⥊˜≠)⌾(o⊸/)𝕩}¨⌾((¬b)⊸/)↩
+lines {o←(>⟜»∨>⟜«)≠`⊸∨t←'`'=𝕩 ⋄ ∾⍟(1<≡)(¬<`o<t)/("<code>"‿"</code>"⥊˜≠)⌾(o⊸/)𝕩}¨⌾((¬b)⊸/)↩
 ```
 
 This is now a really long and ugly line.
@@ -96,19 +96,19 @@ For illustrative purposes, I've replaced the outer backticks with underscores.
 There's the first statement of the block down.
 
 Now we just need to filter out one of each pair of inner backticks.
-The inner backticks are just `t∧¬o`, all the backticks without the outer ones.
+The inner backticks are just `o<t`, all the backticks without the outer ones.
 
 ```
-   t∧¬o
+   o<t
 ⟨ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0 0 0 0 0 0 0 0 0 0 1 1 0 1 1 1 1 0 0 0 1 1 0 0 ⟩
 ```
 
-To filter out one of the backticks from each pair at first I tried `(¬∧⟜«t∧¬o)/`.
+To filter out one of the backticks from each pair at first I tried `(¬∧⟜«o<t)/`.
 The critical part, `∧⟜«`, checks if a value is 1 and the next value is 1.
 But that doesn't work since it will turn a whole run of backticks into a single backtick.
 
 ```
-   (¬∧⟜«t∧¬o)/a
+   (¬∧⟜«o<t)/a
 "So what I typed to get _+`↕10_ was _`+`↕10`_."
 ```
 
@@ -118,7 +118,7 @@ We need an operation that removes every other 1 from a run of 1s.
 It turns out that this is exactly what `<``` does.
 
 ```
-   (¬<`t∧¬o)/a
+   (¬<`o<t)/a
 "So what I typed to get _+`↕10_ was _`+``↕10`_."
 ```
 
