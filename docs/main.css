@@ -6,6 +6,9 @@
     font-family: tahoma, sans-serif;
     box-sizing: border-box;
 }
+html {
+    padding: 0 0 0 5ch;
+}
 code, pre {
     font-family: BQN;
 }
