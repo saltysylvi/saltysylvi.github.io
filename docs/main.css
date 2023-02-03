@@ -3,7 +3,6 @@
     src: url(BQN386.ttf) format('truetype');
 }
 * {
-    font-family: tahoma, sans-serif;
     box-sizing: border-box;
 }
 html {
@@ -14,6 +13,9 @@ code, pre {
 }
 body {
     width: 60ch;
+    font-family: Georgia, serif;
     font-size: 24px;
+    background-color: #ffffef;
+    color: #111111;
     margin: auto;
 }
