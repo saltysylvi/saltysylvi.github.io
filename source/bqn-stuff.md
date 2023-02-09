@@ -1,7 +1,6 @@
-# Array Programming
+# BQN Stuff
 
-Where I collect links related to my array programming activities.  
-Array programming here refers to APL and its descendents J and BQN.
+Where I collect links related to my BQN programming.
 
 ---
 
@@ -12,6 +11,13 @@ Array programming here refers to APL and its descendents J and BQN.
 This is a little web page I made to convert tacit BQN to block form.
 It is also an experiment in concision: the whole thing is just one html file with <300 sloc.
 
+## Blog
+
+[https://saltysylvi.github.io/blog/](https://saltysylvi.github.io/blog/)
+
+I enjoy writing about BQN.
+Check out my [BQN macros](blog/bqn-macros.md) post where I create a 1-modifier that turns a train into a left-to-right chain of monads, or see my post on [parsing lists in BQN](blog/parsing-nested-lists-in-bqn.md) where I demonstrate simple array-style parsing.
+
 ## Advent of Code
 
 [https://github.com/saltysylvi/bqn-aoc2022](https://github.com/saltysylvi/bqn-aoc2022)
@@ -19,11 +25,3 @@ It is also an experiment in concision: the whole thing is just one html file wit
 I've completed most of Advent of Code 2022 in BQN.
 Around day 15 I got busy with the holidays, but I intend to go back and finish it eventually.
 I'd also like to complete the earlier years in BQN, and perhaps even write up some annotated solutions.
-
-## Project Euler
-
-[https://github.com/saltysylvi/j-project-euler](https://github.com/saltysylvi/j-project-euler)
-
-I'm trying to create a single 100 line J script where each line solves the corresponding Project Euler problem.
-I'm also explaining (not in very much detail, tbh) how the solutions work.
-Not very far yet.
