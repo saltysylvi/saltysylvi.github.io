@@ -1,5 +1,6 @@
 # Blog
 
+02/28/2023: [BQNcrate: generating permutations](BQNcrate-permutations.md)  
 02/08/2023: [Boolean scans in BQN](boolean-scans.md)  
 02/04/2023: [BQN "macros" with `•Decompose`](bqn-macros.md)  
 01/29/2023: [Escaping backticks in my BQN site generator](escaping-backticks.md)  

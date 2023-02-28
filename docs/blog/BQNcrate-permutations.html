@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=0.5">
+<title>BQNcrate: generating permutations</title>
+<link href="../main.css" rel="stylesheet">
+</head>
+<body>
+<h1>BQNcrate: generating permutations</h1>
+
+<p>02/28/2023
+</p>
+<p>Studying the BQNcrate expression for generating all permutations of <code>↕n0</code> as table rows in lexicographical order.
+</p>
+<hr>
+
+<p>I was working on an <a href="https://adventofcode.com/2015/day/9">Advent of Code problem</a> 
+that involved finding an optimal ordering, and I wanted to write a simple bruteforce solution.
+So I headed over to <a href="https://mlochbaum.github.io/bqncrate/">BQNcrate</a> to see how to generate all permutations of a list.
+</p>
+<p>Here is the expression I found:
+</p><pre>
+(≍↕0){∾˝(0∾˘1+𝕩)⊸⊏˘⍒˘=⌜˜↕𝕨}´-⟜↕n0
+</pre>
+
+<p>I had to study it for a bit to see how it worked.
+(Like, what's <code>⍒</code> doing in there?)
+I think it's a really cool bit of BQN, and I want to explain it here.
+</p>
+<h2>Overview</h2>
+
+<p>The core of the above expression is a block function that takes a positive integer <code>n</code> as its left argument and a table of all permutations of <code>↕n-1</code> as its right argument and returns a table of of all permutations of <code>↕n</code>.
+Using this function, we can generate all permutations of <code>↕n</code> for any <code>n</code> by starting with a table of all permutations of <code>↕0</code> and folding over the list of positive integers up to <code>n</code>.
+</p>
+<p>The block function operates on the principle that we can generate all the permutations of <code>↕n</code> by doing every combination of picking a number from <code>↕n</code>, say <code>k</code>, and a permutation of <code>↕n-1</code>, say <code>p</code>. 
+Then, loosely speaking, we get the permutation of <code>↕n</code> that puts <code>k</code> first and permutes the remaining values of <code>↕n</code> using <code>p</code>.
+</p>
+<h2>Specifics</h2>
+
+<p>The table of all permutations of <code>↕0</code> is <code>≍↕0</code> above.
+<code>↕0</code> makes an empty list, and solo (<code>≍</code>) adds a leading axis.
+So <code>≍↕0</code> is a table with one row and zero columns, indicating that there is one and only one permutation of zero things,
+and we can list what goes where with an empty list.
+</p>
+<p>The list <code>-⟜↕n0</code> expands to <code>n0-↕n0</code> which the same as <code>⌽1+↕n0</code>, a list of positive integers <code>⟨n0,n0-1,...,1⟩</code>.
+</p>
+<pre>
+   -⟜↕4
+⟨ 4 3 2 1 ⟩
+</pre>
+
+<p>We need a descending list because BQN's fold works right to left.
+</p>
+<p>Now for the block.
+The first step is generating an identity matrix.
+</p>
+<pre>
+   =⌜˜↕4
+┌─
+╵ 1 0 0 0
+  0 1 0 0
+  0 0 1 0
+  0 0 0 1
+          ┘
+</pre>
+
+<p>This is the standard identity matrix idiom.
+Self (<code>˜</code>) is used to pass <code>↕4</code> as both arguments to <code>=⌜</code> which then returns a table comparing every pair of elements of <code>↕4</code>.
+Since each element of <code>↕4</code> is unique, the only 1s are on the diagonal.
+</p>
+<p>The next step is using <code>⍒</code> on each row.
+</p>
+<pre>
+   ⍒˘=⌜˜↕4
+┌─
+╵ 0 1 2 3
+  1 0 2 3
+  2 0 1 3
+  3 0 1 2
+          ┘
+</pre>
+
+<p>Grade down (<code>⍒</code>) returns the indices that would stably sort its input in descending order.
+Cells (<code>˘</code>) applies a function to the major cells of an array, which for a table are its rows.
+Since each row has a single 1 and then a bunch of 0s, grade down returns the index of the 1 and then the rest of the indices in ascending order.
+</p>
+<p>At this point each row represents the whole collection of permutations that start with the same number the row starts with.
+To get all the permutations, we need to permute the last 3 elements of each row in every possible way.
+For example, to get every permutation starting with <code>1</code>, we need to apply all 6 permutations of 3 things to the last 3 elements of the second row.
+</p>
+<p>By assumption, the right argument of the block is a table of permutations <code>↕3</code>,
+which I'll just list out here as <code>p</code>.
+</p>
+<pre>
+   p ← [0‿1‿2,0‿2‿1,1‿0‿2,1‿2‿0,2‿0‿1,2‿1‿0]
+┌─
+╵ 0 1 2
+  0 2 1
+  1 0 2
+  1 2 0
+  2 0 1
+  2 1 0
+        ┘
+</pre>
+
+<p>To turn a permutation of <code>↕3</code> into a permutation of <code>↕4</code> that leaves the first element unchanged,
+we add <code>1</code> and prepend a <code>0</code>.
+</p>
+<pre>
+   0∾˘1+p
+┌─
+╵ 0 1 2 3
+  0 1 3 2
+  0 2 1 3
+  0 2 3 1
+  0 3 1 2
+  0 3 2 1
+          ┘
+</pre>
+
+<p>Addition is pervasive, so <code>1+p</code> increments every number in <code>p</code>.
+Join to (<code>∾</code>) with cells (<code>˘</code>) is used to prepend a <code>0</code> to each row.
+</p>
+<p>The next step is to apply each modified permutation to each row of the table from above.
+</p><pre>
+   (0∾˘1+p)⊸⊏˘⍒˘=⌜˜↕4
+┌─
+╎ 0 1 2 3
+  0 1 3 2
+  0 2 1 3
+  0 2 3 1
+  0 3 1 2
+  0 3 2 1
+
+  1 0 2 3
+  1 0 3 2
+  1 2 0 3
+  1 2 3 0
+  1 3 0 2
+  1 3 2 0
+
+  2 0 1 3
+  2 0 3 1
+  2 1 0 3
+  2 1 3 0
+  2 3 0 1
+  2 3 1 0
+
+  3 0 1 2
+  3 0 2 1
+  3 1 0 2
+  3 1 2 0
+  3 2 0 1
+  3 2 1 0
+          ┘
+</pre>
+
+<p>Select (<code>⊏</code>) (i.e. indexing) is used to apply a permutation.
+We bind (<code>⊸</code>) the table of modified permutations to <code>⊏</code> and then use <code>˘</code> on the whole thing.
+This makes a one argument function that permutes each row in all six ways,
+returning a table for each row.
+</p>
+<p>The last step of the block function is the join all the tables into one long table.
+</p><pre>
+   ∾˝(0∾˘1+p)⊸⊏˘⍒˘=⌜˜↕4
+┌─
+╵ 0 1 2 3
+  0 1 3 2
+  0 2 1 3
+  0 2 3 1
+  0 3 1 2
+  0 3 2 1
+  1 0 2 3
+  1 0 3 2
+  1 2 0 3
+  1 2 3 0
+  1 3 0 2
+  1 3 2 0
+  2 0 1 3
+  2 0 3 1
+  2 1 0 3
+  2 1 3 0
+  2 3 0 1
+  2 3 1 0
+  3 0 1 2
+  3 0 2 1
+  3 1 0 2
+  3 1 2 0
+  3 2 0 1
+  3 2 1 0
+          ┘
+</pre>
+
+<p>Join to (<code>∾</code>) joins arrays along their leading axis, rows for tables.
+Calling it with insert (<code>˝</code>) joins all the tables together, like a fold.
+</p>
+<p>And that's that pretty much.
+Using a right to left fold, we just repeatedly call that block, growing our table of permutations.
+I like the use of fold where my first instinct is recursion,
+and I like the clever use of grade down on the identity matrix.
+</p>
+<p>Happy permuting! &lt;3
+</p>
+</body>
+</html>
