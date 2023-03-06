@@ -211,7 +211,7 @@ We could add more cases, but we're just making a proof of concept here.
      ⟨2,f,g⟩: ⟨3, T g, ×, ⟨2, T f, g⟩⟩; # 2-trains
      ⟨3,f,g,h⟩: { # 3-trains
        g=⊑⟨+⟩ ? ⟨3, T f, +, T h⟩;
-       g=⊑⟨-⟩ ? ⟨3, T f, -, T g⟩;
+       g=⊑⟨-⟩ ? ⟨3, T f, -, T h⟩;
        g=⊑⟨×⟩ ? ⟨3, ⟨3, h, ×, T f⟩, +, ⟨3, f, ×, T h⟩⟩;
        g=⊑⟨÷⟩ ? ⟨3, ⟨3, ⟨3, h, ×, T f⟩, -, ⟨3, f, ×, T h⟩⟩, ÷, ⟨2, ⋆⟜2, h⟩⟩
      };
