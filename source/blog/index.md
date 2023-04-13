@@ -1,5 +1,6 @@
 # Blog
 
+04/13/2023: [Partition representations in BQN](partition-representations.md)  
 02/28/2023: [BQNcrate: generating permutations](BQNcrate-permutations.md)  
 02/08/2023: [Boolean scans in BQN](boolean-scans.md)  
 02/04/2023: [BQN "macros" with `•Decompose`](bqn-macros.md)  
