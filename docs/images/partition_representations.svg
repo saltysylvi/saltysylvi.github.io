@@ -52,7 +52,7 @@
       <text dy="0.26em" x="448" y="168" font-size="40px">/</text>
       <text dy="0.26em" x="448" y="680" font-size="40px">/</text>
       <text dy="0.33em" x="0" y="887" font-size="28px" transform="rotate(-45)">¯1↓</text>
-      <text dy="0.33em" x="670" y="0" font-size="28px" transform="rotate(45)">{𝕩⍋↕1+¯1⊑𝕩}</text>
+      <text dy="0.33em" x="670" y="0" font-size="28px" transform="rotate(45)">{𝕩⍋↕⊢´𝕩}</text>
     </g>
     <text dy="0.33em" x="89.6" y="141.16" font-size="26px">target</text>
     <text dy="0.33em" x="89.6" y="171.16" font-size="26px">indices</text>

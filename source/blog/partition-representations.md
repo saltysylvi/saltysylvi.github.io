@@ -94,33 +94,59 @@ Below, we discuss a modification to Partitioned Enclose that is more natural and
 First, we discuss the only partition representation directly used by a BQN primitive, that primitive being Group.
 Each element of the left argument of Group specifies the index of the division to which the corresponding element of the right argument belongs.
 
-In order for this to produce a partition, the left argument must be a list of non-decreasing non-negative integers (as with the division endpoint representation). Then for a left argument `l` the number of divisions is `1+¯1⊑l`. 
+In order for this to produce a partition, the left argument must be a list of non-decreasing non-negative integers (as with the division endpoint representation). Then for a left argument `l` the number of divisions is `1+⊢´l`, one more than the last element. 
 
 ```
    1‿1‿3‿3‿3‿3‿6 ⊔ "abcdefg"
 ⟨ ⟨⟩ "ab" ⟨⟩ "cdef" ⟨⟩ ⟨⟩ "g" ⟩
 ```
 
-Note that empty divisions are inserted when the index increases (including from an implicit initial index of ¯1) based on how many indices were skipped (since the divisions with those indices can't contain any elements).
+Note that empty divisions are inserted when the index increases (including from an implicit initial index of `¯1`) based on how many indices were skipped (since the divisions with those indices can't contain any elements).
 
 Target indices can be converted to division endpoints using Bins Up (`⍋`), and then to division lengths with a pair-wise difference:
 
 ```
-   ¯1⊑1‿1‿3‿3‿3‿3‿6
-6
-   1+¯1⊑1‿1‿3‿3‿3‿3‿6
+   1‿1‿3‿3‿3‿3‿6 ⊔ "abcdefg"
+⟨ ⟨⟩ "ab" ⟨⟩ "cdef" ⟨⟩ ⟨⟩ "g" ⟩
+   1+⊢´1‿1‿3‿3‿3‿3‿6 # number of divisions
 7
-   ↕1+¯1⊑1‿1‿3‿3‿3‿3‿6
+   ↕1+⊢´1‿1‿3‿3‿3‿3‿6
 ⟨ 0 1 2 3 4 5 6 ⟩
-   1‿1‿3‿3‿3‿3‿6 ⍋ ↕1+¯1⊑1‿1‿3‿3‿3‿3‿6
+   1‿1‿3‿3‿3‿3‿6 ⍋ ↕1+⊢´1‿1‿3‿3‿3‿3‿6
 ⟨ 0 2 2 6 6 6 7 ⟩
-   {𝕩⍋↕1+¯1⊑𝕩} 1‿1‿3‿3‿3‿3‿6
+   {𝕩⍋1+↕⊢´𝕩} 1‿1‿3‿3‿3‿3‿6 # division endpoints
 ⟨ 0 2 2 6 6 6 7 ⟩
-   -⟜»{𝕩⍋↕1+¯1⊑𝕩} 1‿1‿3‿3‿3‿3‿6
+   -⟜»{𝕩⍋1+↕⊢´𝕩} 1‿1‿3‿3‿3‿3‿6 # division lengths
 ⟨ 0 2 0 4 0 0 1 ⟩
 ```
 
-This conversion can be used to show that like the other two representations, target indices represent partitions bijectively. However, there is a concern regarding the final element, which is used to find the length of the division length list above, that is, the number of divisions. If the target indices correspond exactly to the elements of the partitioned list, then the last target index is the index of the last non-empty division. However, it is valid in a partition to include empty divisions at the end. In order to represent such divisions, we must allow an additional index after the last element of the partitioned list.
+Division endpoints can also be converted to target indices using the same idea.
+
+```
+   ⊢´0‿2‿2‿6‿6‿6‿7 # number of elements
+7
+   ↕⊢´0‿2‿2‿6‿6‿6‿7
+⟨ 0 1 2 3 4 5 6 ⟩
+   0‿2‿2‿6‿6‿6‿7 ⍋ ↕⊢´0‿2‿2‿6‿6‿6‿7
+⟨ 1 1 3 3 3 3 6 ⟩
+   {𝕩⍋↕⊢´𝕩} 0‿2‿2‿6‿6‿6‿7 # target indices
+⟨ 1 1 3 3 3 3 6 ⟩
+```
+
+When converting from target indices to division endpoints,
+we use `1+⊢´` to get the number of divisions and `⍋` to find where the divisions sit relative to the elements.
+When converting from division endpoints to target indices,
+we use `⊢´` to get the number of elements and `⍋` to find where the elements sit relative to the divisions.
+If we just use `{𝕩⍋↕⊢´𝕩}` twice to convert from division endpoints to target indices and then back again, we end up dropping the last division endpoint.
+
+```
+   {𝕩⍋↕⊢´𝕩} 0‿2‿2‿6‿6‿6‿7
+⟨ 1 1 3 3 3 3 6 ⟩
+   {𝕩⍋↕⊢´𝕩}⍟2 0‿2‿2‿6‿6‿6‿7
+⟨ 0 2 2 6 6 6 ⟩
+```
+
+This conversion between target indices and division endpoints can be used to show that like division endpoints and division lengths, target indices represent partitions bijectively. However, there is a concern regarding the final element, which is used to find the length of the division length list above, that is, the number of divisions. If the target indices correspond exactly to the elements of the partitioned list, then the last target index is the index of the last non-empty division. However, it is valid in a partition to include empty divisions at the end. In order to represent such divisions, we must allow an additional index after the last element of the partitioned list.
 
 Group allows an extra element at the end of its left argument, which is taken to be the the total number of divisions.
 
