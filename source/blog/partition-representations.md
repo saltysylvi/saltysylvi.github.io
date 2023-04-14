@@ -19,7 +19,7 @@ I've dropped the Mesh section, added a discussion of a relevant problem that cam
 
 Many thanks to Marshall for tracking down the original SVG of the Square of Power diagram, so that I could make a BQN version.
 
-All content I've taken from the APL wiki is availble under the [CC BY-SA license](https://creativecommons.org/licenses/by-sa/4.0/), and therefore this blog post is available under the same license.
+All content I've taken from the APL wiki is available under the [CC BY-SA license](https://creativecommons.org/licenses/by-sa/4.0/), and therefore this blog post is available under the same license.
 
 ## Definitions
 
