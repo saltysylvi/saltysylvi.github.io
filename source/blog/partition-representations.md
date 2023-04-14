@@ -41,6 +41,10 @@ In the process, we must compute the division endpoints `+``l` using a Plus Scan.
 ```
    l ← 2‿0‿3‿3
    x ← "abcdefgh"
+   +`l
+⟨ 2 2 5 8 ⟩
+   (+`l) ↑¨ <x
+⟨ "ab" "ab" "abcde" "abcdefgh" ⟩
    (-l) ↑¨ (+`l) ↑¨ <x
 ⟨ "ab" ⟨⟩ "cde" "fgh" ⟩
 ```
@@ -102,6 +106,14 @@ Note that empty divisions are inserted when the index increases (including from 
 Target indices can be converted to division endpoints using Bins Up (`⍋`), and then to division lengths with a pair-wise difference:
 
 ```
+   ¯1⊑1‿1‿3‿3‿3‿3‿6
+6
+   1+¯1⊑1‿1‿3‿3‿3‿3‿6
+7
+   ↕1+¯1⊑1‿1‿3‿3‿3‿3‿6
+⟨ 0 1 2 3 4 5 6 ⟩
+   1‿1‿3‿3‿3‿3‿6 ⍋ ↕1+¯1⊑1‿1‿3‿3‿3‿3‿6
+⟨ 0 2 2 6 6 6 7 ⟩
    {𝕩⍋↕1+¯1⊑𝕩} 1‿1‿3‿3‿3‿3‿6
 ⟨ 0 2 2 6 6 6 7 ⟩
    -⟜»{𝕩⍋↕1+¯1⊑𝕩} 1‿1‿3‿3‿3‿3‿6
@@ -110,7 +122,7 @@ Target indices can be converted to division endpoints using Bins Up (`⍋`), and
 
 This conversion can be used to show that like the other two representations, target indices represent partitions bijectively. However, there is a concern regarding the final element, which is used to find the length of the division length list above, that is, the number of divisions. If the target indices correspond exactly to the elements of the partitioned list, then the last target index is the index of the last non-empty division. However, it is valid in a partition to include empty divisions at the end. In order to represent such divisions, we must allow an additional index after the last element of the partitioned list.
 
-Group allows an extra element and the end of its left argument, which is taken to be the the total number of divisions.
+Group allows an extra element at the end of its left argument, which is taken to be the the total number of divisions.
 
 ### Divider counts
 
@@ -147,6 +159,10 @@ On the [BQN chat forums](https://mlochbaum.github.io/BQN/community/forums.html) 
 dzaima suggested the following:
 
 ```
+   »⊸≠ "aaaabccbaadeeee"
+⟨ 1 0 0 0 1 1 0 1 1 0 1 1 0 0 0 ⟩
+   / »⊸≠ "aaaabccbaadeeee"
+⟨ 0 4 5 7 8 10 11 ⟩
    -⟜» / »⊸≠ "aaaabccbaadeeee"
 ⟨ 0 4 1 2 1 2 1 ⟩
 ```
@@ -172,6 +188,14 @@ These kinds of "mismatches" are a common issue, but I find they're easily addres
 One way to address the mismatch is to change `-⟜»`, shifting in the length of the original list at the end.
 
 ```
+   ≠"aaaabccbaadeeee"
+15
+   / »⊸≠ "aaaabccbaadeeee"
+⟨ 0 4 5 7 8 10 11 ⟩
+   15 « / »⊸≠ "aaaabccbaadeeee"
+⟨ 4 5 7 8 10 11 15 ⟩
+   {(15 « 𝕩) - 𝕩} / »⊸≠ "aaaabccbaadeeee"
+⟨ 4 1 2 1 2 1 4 ⟩
    {(≠𝕩)⊸«⊸- / »⊸≠ 𝕩} "aaaabccbaadeeee"
 ⟨ 4 1 2 1 2 1 4 ⟩
 ```
@@ -181,6 +205,12 @@ This takes us from division startpoints to division lengths.
 Another approach is to calculate the division endpoints to begin with, and leave the `-⟜»` alone.
 
 ```
+   «⊸≠ "aaaabccbaadeeee"
+⟨ 0 0 0 1 1 0 1 1 0 1 1 0 0 0 1 ⟩
+   / «⊸≠ "aaaabccbaadeeee"
+⟨ 3 4 6 7 9 10 14 ⟩
+   1 + / «⊸≠ "aaaabccbaadeeee"
+⟨ 4 5 7 8 10 11 15 ⟩
    -⟜» 1+/ «⊸≠ "aaaabccbaadeeee"
 ⟨ 4 1 2 1 2 1 4 ⟩
 ```
@@ -199,6 +229,12 @@ Rampoina and Marshall each suggested solutions that go the opposite way around t
 Here's Marshall's:
 
 ```
+   »⊸≠ "aaaabccbaadeeee"
+⟨ 1 0 0 0 1 1 0 1 1 0 1 1 0 0 0 ⟩
+   +` »⊸≠ "aaaabccbaadeeee"
+⟨ 1 1 1 1 2 3 3 4 5 5 6 7 7 7 7 ⟩
+   ¯1 +` »⊸≠ "aaaabccbaadeeee"
+⟨ 0 0 0 0 1 2 2 3 4 4 5 6 6 6 6 ⟩
    /⁼ ¯1 +` »⊸≠ "aaaabccbaadeeee"
 ⟨ 4 1 2 1 2 1 4 ⟩
    {m←»⊸≠𝕩 ⋄ (/⁼ ¯1 +` m) ⋈¨ m/𝕩} "aaaabccbaadeeee"
