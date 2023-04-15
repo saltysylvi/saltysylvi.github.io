@@ -137,12 +137,13 @@ When converting from target indices to division endpoints,
 we use `1+⊢´` to get the number of divisions and `⍋` to find where the divisions sit relative to the elements.
 When converting from division endpoints to target indices,
 we use `⊢´` to get the number of elements and `⍋` to find where the elements sit relative to the divisions.
-If we just use `{𝕩⍋↕⊢´𝕩}` twice to convert from division endpoints to target indices and then back again, we end up dropping the last division endpoint.
+If we just use `{𝕩⍋↕⊢´𝕩}` twice to convert from division endpoints to target indices and then back again, we end up dropping the last run of equal elements.
+This has the effect of dropping the last nonempty divison and all empty divisions after it.
 
 ```
-   {𝕩⍋↕⊢´𝕩} 0‿2‿2‿6‿6‿6‿7
-⟨ 1 1 3 3 3 3 6 ⟩
    {𝕩⍋↕⊢´𝕩}⍟2 0‿2‿2‿6‿6‿6‿7
+⟨ 0 2 2 6 6 6 ⟩
+   {𝕩⍋↕⊢´𝕩}⍟2 0‿2‿2‿6‿6‿6‿7‿7‿7‿7
 ⟨ 0 2 2 6 6 6 ⟩
 ```
 
