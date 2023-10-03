@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=0.5">
+<title>Flat array programming 1</title>
+<link href="../main.css" rel="stylesheet">
+</head>
+<body>
+<h1>Flat array programming 1</h1>
+
+<p>10/03/2023
+</p>
+<p>Exploring array programming without nested arrays in BQN.
+</p>
+<hr>
+
+<p>In <a href="https://www.arraycast.com/episodes/episode63-uiua">the latest episode of the Array Cast</a>, there was a brief discussion of how you can accomplish a surprising amount with just flat arrays.
+Avoiding nesting was necessary in the olden days of APL simply because there were no nested arrays!
+As Adám pointed out, these "olden days" were actually when people were making money using APL,
+so it must not have been impossible to get work done with only flat arrays.
+How did they do it?
+</p>
+<p>Marshall mentioned <a href="https://dl.acm.org/doi/10.1145/390009.804488">a classic paper by Bob Smith</a> that outlines techniques for simulating a list of lists using only flat lists.
+I've been enjoying studying the paper as well as the old <a href="https://aplwiki.com/wiki/FinnAPL_idiom_library">FinnAPL idiom library</a> to learn more about flat array techniques.
+I feel like there's something really beautiful about this old-school style,
+so I want to help pass it on to new-school BQN programmers who are perhaps less likely than APL programmers to connect with the APL tradition.
+</p>
+<p>It is also worth noting that avoiding nested arrays often leads to more performant code, so there is a practical as well as aesthetic value to these techniques.
+I won't be investigating performance in this post, however.
+</p>
+<h2>Reversing each word in a sentence</h2>
+
+<p>In the aforementioned episode of the Array Cast, Connor brought up the problem of reversing each word in a sentence.
+He noted that in a nested approach you just split, reverse each, and join.
+Surely the flat solution is unwieldly compared to that!
+Marshall pointed out that, well no, it's pretty short.
+You just find the word starts, sum, and grade down or something like that.
+Let's break down both approaches and compare them.
+</p>
+<p>Both approaches will first construct a list that controls how the sentence will be partitioned.
+Each space will be considered its own word, since this is a simple way to keep the original spacing after reversing each word.
+</p><pre>
+    s ← "here are some words"
+    ' '=s
+⟨ 0 0 0 0 1 0 0 0 1 0 0 0 0 1 0 0 0 0 0 ⟩
+    ∨⟜»' '=s
+⟨ 0 0 0 0 1 1 0 0 1 1 0 0 0 1 1 0 0 0 0 ⟩
+    p ← +`∨⟜»' '=s
+⟨ 0 0 0 0 1 2 2 2 3 4 4 4 4 5 6 6 6 6 6 ⟩
+</pre>
+<p>We start a new partition on each space and each character after a space.
+</p>
+<p>The nested approach groups <code>s</code> using <code>p</code>, reverses each, and joins.
+</p><pre>
+    p⊔s
+⟨ "here" " " "are" " " "some" " " "words" ⟩
+    ⌽¨p⊔s
+⟨ "ereh" " " "era" " " "emos" " " "sdrow" ⟩
+    ∾⌽¨p⊔s
+"ereh era emos sdrow"
+</pre>
+
+<p>Now the flat approach.
+The key is <code>⍒p</code>.
+</p><pre>
+    p
+⟨ 0 0 0 0 1 2 2 2 3 4 4 4 4 5 6 6 6 6 6 ⟩
+    ⍒p
+⟨ 14 15 16 17 18 13 9 10 11 12 8 5 6 7 4 0 1 2 3 ⟩
+    (⍒p)⊏s
+"words some are here"
+</pre>
+<p>Interesting! We've reversed the string, but on the level of words, not characters.
+</p>
+<p>Grade down gives the indices that would stably sort <code>p</code> into descending order.
+The stability is important! It makes sure the letters in each word stay in order.
+For example, the largest values in <code>p</code> are all the <code>6</code>s, corresponding to the last word.
+So those get moved to the front, and since they all tie, they are left in order.
+Next comes the <code>5</code>, which is the space before the last word.
+Then all the <code>4</code>s, in original order. Etc.
+</p>
+<p>To reverse each word, we just need to reverse the whole string again.
+Or equivalently, reverse <code>⍒p</code> before indexing.
+</p><pre>
+    ⌽(⍒p)⊏s
+"ereh era emos sdrow"
+    (⌽⍒p)⊏s
+"ereh era emos sdrow"
+    s⊏˜⌽⍒p
+"ereh era emos sdrow"
+</pre>
+
+<p>In terms of character count, it's a tie!
+</p><pre>
+    ∾⌽¨p⊔s
+    s⊏˜⌽⍒p
+</pre>
+
+<h2>Mesh</h2>
+
+<p>Here's a cool one from the FinnAPL idiom library.
+</p><pre>
+    x ← "abcd"
+    y ← "XYZ"
+    g ← 0‿0‿1‿0‿1‿1‿0
+    (⍋⍋g)⊏x∾y # Mesh
+"abXcYZd"
+</pre>
+<p><a href="https://aplwiki.com/wiki/Mesh">Mesh</a> generalizes <code>∾</code>: we join two lists <code>x</code> and <code>y</code> together but not necessarily in order.
+A third list <code>g</code> specifies the order.
+Each <code>0</code> in <code>g</code> means pick the next element of <code>x</code>, and each <code>1</code> in <code>g</code> means pick the next element of <code>y</code>.
+</p>
+<p>How does it work? The <code>⍋⍋</code> is the <a href="https://mlochbaum.github.io/BQN/doc/order.html#ordinals">ordinals pattern</a>: it says what rank each element of <code>g</code> has, where rank <code>0</code> means smallest, <code>1</code> means next smallest, etc.
+</p><pre>
+   g
+⟨ 0 0 1 0 1 1 0 ⟩
+   ⍋⍋g
+⟨ 0 1 4 2 5 6 3 ⟩
+</pre>
+<p>The <code>0</code>s in <code>g</code> get ranks <code>0</code> to <code>3</code> in the order they appear in <code>g</code>, while the <code>1</code>s in <code>g</code> get ranks <code>4</code> to <code>6</code> in the order they appear in <code>g</code>.
+And what do you know, these ranks are exactly the indices in <code>x∾y</code> of the elements of <code>x</code> and <code>y</code> we want to pick.
+</p>
+<h2>Expand</h2>
+
+<p><a href="https://aplwiki.com/wiki/Expand">Expand</a> is an APL primitive that BQN doesn't have.
+Marshall suggests <code>{𝕩⌾(𝕨⊸/)𝕨≠⊸↑0↑𝕩}</code> as a replacement in the <a href="https://mlochbaum.github.io/BQN/doc/fromDyalog.html#for-writing">BQN-Dyalog APL dictionary</a>.
+</p>
+<pre>
+   1‿0‿0‿1‿0‿1 {𝕩⌾(𝕨⊸/)𝕨≠⊸↑0↑𝕩} 97‿98‿99
+⟨ 97 0 0 98 0 99 ⟩
+   1‿0‿0‿1‿0‿1 {𝕩⌾(𝕨⊸/)𝕨≠⊸↑0↑𝕩} "ABC"
+"A  B C"
+</pre>
+
+<p>Basically, expand takes a boolean left argument with as many <code>1</code>s as the length of the right argument
+and replaces each <code>1</code> by the corresponding element of the right argument and each <code>0</code> by the fill of the right argument.
+</p>
+<p>The definition above uses <code>0↑𝕩</code> to get the fill element, and then <code>𝕨≠⊸↑</code> to make a length <code>≠𝕨</code> list of fills.
+Finally, it uses structural under to plug in the values of <code>𝕩</code> where <code>𝕨</code> has <code>1</code>s.
+It's a nice straightforward translation of the idea into code.
+</p>
+<p>This approach doesn't use nested arrays, but the structural under feels icky, and it is sorely lacking both <code>⍋</code> and <code>⍒</code>, which are clearly the best glyphs.
+Thus, using rules I am making up on the spot, I declare it to be not in the flat style.
+</p>
+<p>Let's use mesh to implement expand, but with *style*. 😎
+</p>
+<p>The idea is that expand is just mesh, but with <code>x</code> being a list of fills of the right length.
+In other words, if we prepend enough fills, then we can use the ordinals trick from mesh to put everything in order. 
+</p><pre>
+    (⍋⍋1‿0‿0‿1‿0‿1) ⊏ 0‿0‿0 ∾ 97‿98‿99
+⟨ 97 0 0 98 0 99 ⟩
+    (⍋⍋1‿0‿0‿1‿0‿1) ⊏ "   " ∾ "ABC"
+"A  B C"
+</pre>
+
+<p>Using take is an easy way to get enough fills.
+If we "over take" from the front we get a result with fills at the end.
+If we "over take" from the back we get a result with fills at the front.
+</p>
+<pre>
+    10↑97‿98‿99
+⟨ 97 98 99 0 0 0 0 0 0 0 ⟩
+    ¯10↑97‿98‿99
+⟨ 0 0 0 0 0 0 0 97 98 99 ⟩
+</pre>
+
+<p>Putting it all together:
+</p><pre>
+    (⍋⍋1‿0‿0‿1‿0‿1) ⊏ ¯6↑97‿98‿99
+⟨ 97 0 0 98 0 99 ⟩
+    1‿0‿0‿1‿0‿1 {(⍋⍋𝕨)⊏(-≠𝕨)↑𝕩} 97‿98‿99
+⟨ 97 0 0 98 0 99 ⟩
+    1‿0‿0‿1‿0‿1 {(⍋⍋𝕨)⊏(-≠𝕨)↑𝕩} "ABC"
+"A  B C"
+</pre>
+
+<p>One character shorter and <code>∞</code>% more <code>⍋</code>s!
+</p>
+<h2>Conclusion</h2>
+
+<p>This has been just a first taste of the things you can do in BQN without nested arrays.
+A recurring theme is the use of <code>⍋</code> and <code>⍒</code> to cleverly reorganize a list.
+This is a major benefit of the style because <code>⍋</code> and <code>⍒</code> are really cool.
+Next time, we'll put these ideas to use on a simple parsing problem.
+</p>
+<p>Happy flat array programming! &lt;3
+</p>
+</body>
+</html>

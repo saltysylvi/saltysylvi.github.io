@@ -1,5 +1,6 @@
 # Blog
 
+10/03/2023: [Flat array programming 1](flat1.md)  
 04/13/2023: [Partition representations in BQN](partition-representations.md)  
 02/28/2023: [BQNcrate: generating permutations](BQNcrate-permutations.md)  
 02/08/2023: [Boolean scans in BQN](boolean-scans.md)  
