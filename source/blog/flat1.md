@@ -22,7 +22,7 @@ I won't be investigating performance in this post, however.
 
 ## Reversing each word in a sentence
 
-In the aforementioned episode of the Array Cast, Connor brought up the problem of reversing each word in a sentence.
+In the aforementioned episode of the Array Cast, Conor brought up the problem of reversing each word in a sentence.
 He noted that in a nested approach you just split, reverse each, and join.
 Surely the flat solution is unwieldly compared to that!
 Marshall pointed out that, well no, it's pretty short.
