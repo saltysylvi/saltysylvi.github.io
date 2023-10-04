@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=0.5">
+<title>Flat array programming 2</title>
+<link href="../main.css" rel="stylesheet">
+</head>
+<body>
+<h1>Flat array programming 2</h1>
+
+<p>10/04/2023
+</p>
+<p>Using flat array techniques to parse natural numbers from a string.
+</p>
+<hr>
+
+<p>This is my second post exploring flat array programming.
+<a href="flat1.html">Last time</a> we learned how to perform partitioned reverse, mesh, and expand.
+Today we're going to learn partitioned plus fold and partitioned plus scan.
+Then we'll put everything together to parse the natural numbers from a string, without splitting the string!
+</p>
+<h2>A note on terminology</h2>
+
+<p>The <a href="https://dl.acm.org/doi/10.1145/390009.804488">Bob Smith paper</a> discusses techniques for performing "partitioned" operations on lists.
+Let's discuss what that means so that we can benefit from the terminology.
+</p>
+<p>We're given two lists, <code>p</code> and <code>b</code>, where <code>p</code> is boolean list whose <code>1</code>s mark the partition starts and <code>b</code> is a list we're thinking of as being partitioned, that is, comprised of sublists.
+</p>
+<p>Here is an example.
+</p><pre>
+    p ← 1‿0‿0‿0‿1‿0‿1‿0‿0
+    b ← "abcdijxyz"
+    p≍b
+┌─
+╵ 1   0   0   0   1   0   1   0   0
+  'a' 'b' 'c' 'd' 'i' 'j' 'x' 'y' 'z'
+                                      ┘
+</pre>
+
+<p>In BQN we can use <code>(¯1+`p)⊔b</code> to actually split up the partitions.
+</p><pre>
+    p
+⟨ 1 0 0 0 1 0 1 0 0 ⟩
+    +`p
+⟨ 1 1 1 1 2 2 3 3 3 ⟩
+    ¯1+`p
+⟨ 0 0 0 0 1 1 2 2 2 ⟩
+    (¯1+`p)⊔b
+⟨ "abcd" "ij" "xyz" ⟩
+</pre>
+
+<p>Given a function <code>F</code>, "partitioned <code>F</code>" means splitting a list into sublists, applying <code>F</code> to each sublist, and joining the resulting lists back together.
+For example, here is partitioned reverse.
+</p><pre>
+    ∾⌽¨(¯1+`p)⊔b
+"dcbajizyx"
+</pre>
+
+<p>Following the paper, we can encapsulate this idea in a 2-modifier.
+(Note that the paper really just introduces notation, not a modifier.)
+</p><pre>
+    _part_ ← {∾⍟(1&lt;≡)𝔾¨(¯1+`𝕗)⊔𝕩}
+    p _part_ ⌽ b
+"dcbajizyx"
+</pre>
+
+<p>We use <code>∾⍟(1&lt;≡)</code> instead of plain <code>∾</code> to join only if the list is nested.
+For example, if we did a partitioned plus fold, the result of each plus fold is a number, not a list,
+so there is nothing to join, and in fact join will error.
+</p>
+<p>Anyway, the amazing thing is, as we saw last time,
+we don't need to actually do the splitting and joining to compute partitioned reverse.
+</p>
+<pre>
+    b⊏˜⌽⍒+`p
+"dcbajizyx"
+</pre>
+
+<p>So when I say we're going to learn partitioned plus fold and partitioned plus scan,
+what I mean is we're going to learn how to simulate <code>p _part_ (+´) b</code> and <code>p _part_ (+`) b</code> without actually splitting up <code>b</code>.
+</p>
+<h2>Partitioned plus fold</h2>
+
+<p>Here's the example we're going to work out.
+</p><pre>
+    p ← 1‿0‿0‿0‿1‿0‿1‿0‿0
+    b ← 1‿2‿3‿4‿100‿200‿9‿10‿11
+    p _part_ (+´) b
+⟨ 10 300 30 ⟩
+    -⟜»(1⌽p)/+`b
+⟨ 10 300 30 ⟩
+</pre>
+
+<p>First we take the plus scan of <code>b</code>.
+</p><pre>
+    +`b
+⟨ 1 3 6 10 110 310 319 329 340 ⟩
+</pre>
+
+<p>The next idea is that <code>1⌽p</code> indicates the partition end points.
+Each partition start point is one place to the right of the previous partitions endpoint,
+including the first partition start point if we count that as one past the end.
+</p>
+<pre>
+    p≍b
+┌─
+╵ 1 0 0 0   1   0 1  0  0
+  1 2 3 4 100 200 9 10 11
+                          ┘
+    (1⌽p)≍b
+┌─
+╵ 0 0 0 1   0   1 0  0  1
+  1 2 3 4 100 200 9 10 11
+                          ┘
+</pre>
+
+<p>Let's look at the value of the plus scan at the partition endpoints.
+</p>
+<pre>
+    (1⌽p)≍+`b
+┌─
+╵ 0 0 0  1   0   1   0   0   1
+  1 3 6 10 110 310 319 329 340
+                               ┘
+    (1⌽p)/+`b
+⟨ 10 310 340 ⟩
+</pre>
+
+<p>The first one, <code>10</code>, is the plus fold of the first partition.
+The second one, <code>310</code>, is almost the plus fold of the second partition,
+but of course it's too large by <code>10</code> because we've included everything from the first partition.
+Similarly, <code>340</code>, is too large by <code>310</code>
+because we've included the sum of the first two partitions.
+</p>
+<p>To account for this, we subtract the previous value from each,
+with the previous value of the first being <code>0</code>, since it's already correct.
+This is exactly what <code>-⟜»</code> does.
+</p>
+<pre>
+    -⟜»(1⌽p)/+`b
+⟨ 10 300 30 ⟩
+</pre>
+
+<p>Voila!
+</p>
+<h2>Partitioned plus scan</h2>
+
+<p>Partitioned plus scan combines partitioned plus fold and expand.
+Here's how it looks.
+</p>
+<pre>
+    p ← 1‿0‿0‿0‿1‿0‿1‿0‿0
+    b ← 1‿2‿3‿4‿100‿200‿9‿10‿11
+    p _part_ (+`) b
+⟨ 1 3 6 10 100 300 9 19 30 ⟩
+    +`b-(⍋⍋p)⊏(-≠p)↑-⟜»p/+`»b
+⟨ 1 3 6 10 100 300 9 19 30 ⟩
+</pre>
+
+<p>Let's break it down.
+The overall idea is to compute the partitioned plus scan with one big plus scan over a modified <code>b</code>.
+If we just did <code>+`b</code>, we'd get the right result for the first partition, but for the second partition we'd be off by the sum of the first partition.
+</p>
+<pre>
+    +`b
+⟨ 1 3 6 10 110 310 319 329 340 ⟩
+    #      ↑ too high by 10 starting here
+</pre>
+
+<p>We can fix that by subtracting the sum of the first partition from <code>b</code> at the start of the second partition.
+This effectively "resets" the plus scan at the second partition.
+</p>
+<pre>
+    #         ↓ subtract 10 here, 100 becomes 90
+    +`1‿2‿3‿4‿90‿200‿9‿10‿11
+⟨ 1 3 6 10 100 300 309 319 330 ⟩
+    #      ↑ fixed!
+</pre>
+
+<p>Now at the third partition, we're be off by the sum of the second partition, so we need to do the same trick. 
+</p><pre>
+    #                ↓ subtract 300 here
+    +`1‿2‿3‿4‿90‿200‿¯291‿10‿11
+⟨ 1 3 6 10 100 300 9 19 30 ⟩
+    #              ↑ fixed!
+</pre>
+
+<p>To get the adjustments we need, we can do a partitioned plus fold, and then shift in a <code>0</code>.
+</p>
+<pre>
+    -⟜»(1⌽p)/+`b
+⟨ 10 300 30 ⟩
+    »-⟜»(1⌽p)/+`b
+⟨ 0 10 300 ⟩
+</pre>
+
+<p>It ends up being a few characters shorter if we shift in the <code>0</code> at the start because then we can avoid rotating <code>p</code>.
+The idea is still the same though.
+</p>
+<pre>
+    -⟜»p/+`»b
+⟨ 0 10 300 ⟩
+</pre>
+
+<p>Now we need to get these numbers into position for subtracting from <code>b</code>.
+This calls for expand.
+</p>
+<pre>
+    (⍋⍋p)⊏(-≠p)↑-⟜»p/+`»b
+⟨ 0 0 0 0 10 0 300 0 0 ⟩
+</pre>
+
+<p>Finally we just subtract and plus scan.
+</p>
+<pre>
+    b-(⍋⍋p)⊏(-≠p)↑-⟜»p/+`»b
+⟨ 1 2 3 4 90 200 ¯291 10 11 ⟩
+    +`b-(⍋⍋p)⊏(-≠p)↑-⟜»p/+`»b
+⟨ 1 3 6 10 100 300 9 19 30 ⟩
+</pre>
+
+<p>Clever, right?
+</p>
+<h2>Parsing numbers</h2>
+
+<p>Now that we've built up some tools, let's apply them to a little parsing problem.
+We're given a string and we want to parse all the natural numbers out of it into a list.
+This is a pretty standard thing to have to do for Advent of Code, for example.
+</p>
+<p>First let's show how we would handle a single string of digits.
+</p>
+<p>The first step is to turn characters into single digit numbers using character arithmetic.
+</p><pre>
+    s ← "12345"
+    s-'0'
+⟨ 1 2 3 4 5 ⟩
+</pre>
+
+<p>Next we get the powers of 10 to multiply each digit by.
+</p><pre>
+    ↕≠s
+⟨ 0 1 2 3 4 ⟩
+    ⌽↕≠s
+⟨ 4 3 2 1 0 ⟩
+    10⋆⌽↕≠s
+⟨ 10000 1000 100 10 1 ⟩
+</pre>
+
+<p>Finally, we multiply and sum.
+</p><pre>
+    (s-'0') × 10⋆⌽↕≠s
+⟨ 10000 2000 300 40 5 ⟩
+    +´ (s-'0') × 10⋆⌽↕≠s
+12345
+</pre>
+
+<p>Let's think about which operations we used and how we could apply them to a partitioned string of digits.
+</p>
+<p>First we subtract <code>'0'</code> from each substring.
+That will implicitly happen if we just subtract <code>'0'</code> from the whole string.
+</p>
+<p>Next we do <code>↕≠</code> on each partition.
+We can construe this as the plus scan of an all <code>1</code>s list, minus <code>1</code>.
+</p><pre>
+    ↕≠s
+⟨ 0 1 2 3 4 ⟩
+    (+`1‿1‿1‿1‿1)-1
+⟨ 0 1 2 3 4 ⟩
+</pre>
+<p>We can do partitioned plus scan, and as we just mentioned partitioned subtraction is automatic.
+</p>
+<p>Next we have to do partitioned reverse, which is no problem.
+</p>
+<p>Then we have partitioned exponentiation and partitioned multiplication, both of which are automatic.
+And finally, we know how to perform partitioned plus fold, so we have everything we need.
+</p>
+<p>Here's how we construct <code>p</code> and <code>b</code>.
+</p>
+<pre>
+    test ← "17 apples, 200 pears, and 3 cabbages"
+    d ← test∊'0'+↕10
+⟨ 1 1 0 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 ⟩
+</pre>
+
+<p><code>d</code> is a mask of digit locations.
+</p>
+<pre>
+    b ← (d/test)-'0'
+⟨ 1 7 2 0 0 3 ⟩
+</pre>
+
+<p><code>b</code> is a list of all the digits from <code>test</code>.
+I went ahead and did the <code>'0'</code> subtraction here.
+</p>
+<p>To get <code>p</code>, we need to find the locations where there is a digit after a non-digit.
+That's where <code>d</code> is greater than its previous value.
+</p><pre>
+    &gt;⟜» d
+⟨ 1 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 ⟩
+    p ← d/&gt;⟜»d
+⟨ 1 0 1 0 0 1 ⟩
+</pre>
+
+<p>And now we just put together all the partitioned operations on <code>p</code> and <code>b</code>.
+</p>
+<pre>
+    # partitioned plus scan
+    Pps ← {+`𝕩-(⍋⍋𝕨)⊏(-≠𝕩)↑-⟜»𝕨/+`»𝕩}
+
+    # partitioned plus fold
+    Ppf ← {-⟜»(1⌽𝕨)/+`𝕩}
+
+    # partitioned reverse
+    Pr ← {𝕩⊏˜⌽⍒+`𝕨}
+
+    (≠p)⥊1
+⟨ 1 1 1 1 1 1 ⟩
+    p Pps (≠p)⥊1
+⟨ 1 2 1 2 3 1 ⟩
+    1 -˜ p Pps (≠p)⥊1
+⟨ 0 1 0 1 2 0 ⟩
+    p Pr 1 -˜ p Pps (≠p)⥊1
+⟨ 1 0 2 1 0 0 ⟩
+    10 ⋆ p Pr 1 -˜ p Pps (≠p)⥊1
+⟨ 10 1 100 10 1 1 ⟩
+    b × 10 ⋆ p Pr 1 -˜ p Pps (≠p)⥊1
+⟨ 10 7 200 0 0 3 ⟩
+    p Ppf b × 10 ⋆ p Pr 1 -˜ p Pps (≠p)⥊1
+⟨ 17 200 3 ⟩
+</pre>
+
+<h2>Condensing</h2>
+
+<p>We can simplify the all <code>1</code>s partitioned plus scan a whole bunch.
+</p>
+<pre>
+    # original
+    p {+`𝕩-(⍋⍋𝕨)⊏(-≠𝕩)↑-⟜»𝕨/+`»𝕩} (≠p)⥊1
+
+    # plug in p for 𝕨 and (≠p)⥊1 for 𝕩
+    +`((≠p)⥊1)-(⍋⍋p)⊏(-≠((≠p)⥊1))↑-⟜»p/+`»(≠p)⥊1
+
+    # ((≠p)⥊1)- is just 1- ; length of (≠p)⥊1 is ≠p
+    +`1-(⍋⍋p)⊏(-≠p)↑-⟜»p/+`»(≠p)⥊1
+
+    # +`»(≠p)⥊1 is ↕≠p
+    +`1-(⍋⍋p)⊏(-≠p)↑-⟜»p/↕≠p
+
+    # p/↕≠p is /p
+    +`1-(⍋⍋p)⊏(-≠p)↑-⟜»/p
+
+    # tacit for funsies
+    +`1-⍋∘⍋⊏-∘≠↑·-⟜»/
+</pre>
+
+<p>Just for fun let's golf it all into one terse function.
+</p>
+<pre>
+    Nats ← {
+        p←d/&gt;⟜»d←𝕩∊'0'+↕10 ⋄ b←'0'-˜d/𝕩
+        e←(⌽+`⍒⊸⊏¯1+`1-⍋∘⍋⊏-∘≠↑·-⟜»/)p
+        -⟜»(1⌽p)/+`b×10⋆e
+    }
+    Nats "17 apples, 200 pears, and 3 cabbages"
+⟨ 17 200 3 ⟩
+</pre>
+
+<p>Ridiculous!
+</p>
+<h2>Conclusion</h2>
+
+<p>I hope you enjoyed this little exploration of the flat array programming style.
+I think it's cool how all the ideas build on each other and come together to make something useful.
+It looks hard at first, but it's really not too hard to get the hang of it once you've seen a few examples.
+I guess the same could be said of array programming as a whole.
+</p>
+<p>Happy array programming, and keep it flat! &lt;3
+</p>
+</body>
+</html>
